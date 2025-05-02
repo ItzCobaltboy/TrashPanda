@@ -14,6 +14,9 @@ The repository also contains some sample input data for testing the system
 - Numpy/Pandas
 - PostgreSQL for database
 
+#### Dev Tools
+- Postman (for pinging)
+
 <br>
 
 # Installation from Source
