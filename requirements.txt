@@ -1,7 +1,8 @@
 fastapi
 uvicorn
-tensorflow
+tensorflow==2.12.0
 pandas
 numpy
 networkx
 osmnx
+python-dotenv
