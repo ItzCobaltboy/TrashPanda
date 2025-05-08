@@ -2,7 +2,7 @@
 import os
 import yaml
 import psycopg2
-from app.logger import log_debug, log_error, log_info, log_warning
+from app.logger import logger
 
 # Load config
 def load_config():
@@ -12,6 +12,11 @@ def load_config():
 
 
 config = load_config()
+
+logger = logger()
+log_info = logger.log_info
+log_error = logger.log_error
+logger.user = "Telemetry"
 
 # Load parameters
 DB_USER = config["database"]["db_username"]
@@ -91,7 +96,7 @@ def db_log_ping(client_id, endpoint, event_data, status_code):
             VALUES (%s, %s, %s, %s)
         ''', (client_id, endpoint, event_data, status_code))
         conn.commit()
-        log_info(f"New ping event logged: {client_id}, {endpoint}, {event_data}, {status_code}")
+        log_info( f"New ping event logged: {client_id}, {endpoint}, {event_data}, {status_code}")
     except Exception as e:
-        log_error(f"Error logging ping data: {e}")
+        log_error( f"Error logging ping data: {e}")
         conn.rollback()  # Rollback in case of error

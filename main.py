@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, status, HTTPException
 import os
 import yaml
 import shutil
-from app.logger import log_info, log_warning, log_error, log_debug
+from app.logger import logger
 from app.telemetry import db_log_launch_telemetry, db_log_ping
 
 # create the FastAPI app instance
@@ -33,6 +33,11 @@ latest_city_map = None
 latest_trashcan_data = None
 latest_traffic_data = None
 
+logger = logger()
+log_info = logger.log_info  
+log_error = logger.log_error
+logger.user = "Main"
+
 
 # Setup Endpoints
 @app.post("/city_map")
@@ -50,6 +55,7 @@ def get_city_map(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)   
 
     # Now reopen file and parse it and save it to the database
+    global latest_city_map
     latest_city_map = file.filename
     # keep record of latest file in the database
 
@@ -71,6 +77,7 @@ async def get_trashcan_data(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
 
     # Now reopen file and parse it and save it to the database
+    global latest_trashcan_data
     latest_trashcan_data = file.filename
     # keep record of latest file in the database
 
@@ -94,6 +101,7 @@ def get_road_data(file: UploadFile = File(...)):
 
 
     # Now reopen file and parse it and save it to the database
+    global latest_traffic_data 
     latest_traffic_data = file.filename
     # keep record of latest file in the database
 
