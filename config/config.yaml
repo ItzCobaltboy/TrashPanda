@@ -4,8 +4,11 @@ uploads:
   trash_data_dir: uploads\trash_data
 
 database:
-  db_url: PLACEHOLDER_FOR_DB_URL
+  db_username: postgres
+  db_password: 12345678
   db_name: trash_panda_db
+  db_host: localhost
+  db_port: 6969
 
 logging:
   logs_dir: logs
