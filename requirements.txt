@@ -1,3 +1,5 @@
+# Standard Dependancy
+
 fastapi
 pydantic
 uvicorn
@@ -5,7 +7,9 @@ tensorflow==2.12.0
 pandas
 numpy
 networkx
-osmnx
-python-dotenv
 pyyaml
 python-multipart
+psycopg2-binary
+
+# Dev Dependancy
+osmnx
