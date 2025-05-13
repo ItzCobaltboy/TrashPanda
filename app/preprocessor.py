@@ -1,0 +1,199 @@
+import json
+import os
+import networkx as nx
+import numpy as np
+import pandas as pd
+import yaml
+from logger import logger
+
+
+logger = logger()
+logger.user = "Preprocessor"
+
+# open the config file and load the parameters
+def load_config():
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'config.yaml')
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f)
+    
+# Parameters Go here (RN none)
+
+class GraphHandler:
+    def __init__(self, city_map_file):
+        self.Graph = nx.Graph()
+        self.__city_map_file = city_map_file
+
+    def __load_city_map(self):
+        # City map file path
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'maps',self.__city_map_file)
+
+        with open(file_path, 'r') as f:
+            city_map = json.load(f)
+            logger.log_info(f"City map loaded from {self.__city_map_file}.")
+        return city_map
+
+    def get_edge_by_ID(self, edgeID):
+        for u, v, data in self.Graph.edges(data=True):
+            if data['edgeID'] == edgeID:
+                return u, v
+        return None
+
+    # Add Nodes and Edges to the Graph
+    def preprocess_city_map(self):
+        city_map = self.__load_city_map()
+        # Add nodes
+        for node in city_map['nodes']:
+            self.Graph.add_node(node['id'])
+            logger.log_info(f"Node {node['id']} added to the graph.")
+        # Add edges
+        for edge in city_map['edges']:
+            self.Graph.add_edge(edge['source'], edge['target'], edgeID = edge['id'], weight=edge['weight'])
+            logger.log_info(f"Edge {edge['source']} -> {edge['target']} added to the graph with weight {edge['weight']}.")
+        logger.log_info("City map preprocessed and graph created successfully.")
+
+
+class TrashcanDataHandler:
+    def __init__(self, trashcan_data_file):
+        self.trashcan_data_file = trashcan_data_file
+        self.trashcan_data = pd.DataFrame()
+
+    def __load_trashcan_data(self):
+        # Trashcan data file path
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'trash_data', self.trashcan_data_file)
+        self.trashcan_data = pd.read_csv(file_path)
+        logger.log_info(f"Trashcan data loaded from {self.trashcan_data_file}.")
+        return self.trashcan_data
+    
+    def preprocess_trashcan_data(self):
+        # Load trashcan data if not already loaded
+        if self.trashcan_data.empty:
+            self.__load_trashcan_data()
+
+        logger.log_info("Starting trashcan data preprocessing...")
+
+        # Get only the timestamp columns (exclude first two: edgeID, trashcanID)
+        data_only = self.trashcan_data.iloc[:, 2:]
+
+        # Iterate over rows
+        for index, row in data_only.iterrows():
+            values = row.values
+            for i in range(len(values)):
+                if pd.isna(values[i]):
+                    left = values[i - 1] if i > 0 else None
+                    right = values[i + 1] if i < len(values) - 1 else None
+
+                    # Calculate average if both neighbors are valid
+                    if left is not None and right is not None and not pd.isna(left) and not pd.isna(right):
+                        values[i] = (left + right) / 2
+                    elif left is not None and not pd.isna(left):
+                        values[i] = left
+                    elif right is not None and not pd.isna(right):
+                        values[i] = right
+            # Update the row in DataFrame
+            data_only.iloc[index] = values
+
+        # Write the updated data back into the original DataFrame
+        self.trashcan_data.iloc[:, 2:] = data_only
+
+        # Save the cleaned data back to CSV
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'trash_data', self.trashcan_data_file)
+        self.trashcan_data.to_csv(file_path, index=False)
+        logger.log_info("Trashcan data preprocessing complete. Missing values filled.")
+
+        
+
+    def append(self, new_data_array, timestamp):
+        """
+        Appends a new column with the given timestamp and data values.
+
+        Parameters:
+        - new_data_array (list or Series): List of fill percentages (must match number of rows).
+        - timestamp (str): The timestamp label for the new column.
+        """
+        if self.trashcan_data.empty:
+            self.__load_trashcan_data()
+
+        if len(new_data_array) != len(self.trashcan_data):
+            logger.log_error("Length of new data does not match number of trashcans.")
+            return
+
+        # Add the new column
+        self.trashcan_data[timestamp] = new_data_array
+        logger.log_info(f"New column for timestamp {timestamp} appended successfully.")
+
+        # Save the updated DataFrame back to the CSV
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'trash_data', self.trashcan_data_file)
+        self.trashcan_data.to_csv(file_path, index=False)
+        logger.log_info(f"Updated trashcan data saved to {self.trashcan_data_file}.")
+
+class TrafficDataHandler:
+    def __init__(self, traffic_data_file):
+        self.traffic_data_file = traffic_data_file
+        self.traffic_data = pd.DataFrame()
+
+    def __load_traffic_data(self):
+        # Traffic data file path
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'traffic_data', self.traffic_data_file)
+        self.traffic_data = pd.read_csv(file_path)
+        logger.log_info(f"Traffic data loaded from {self.traffic_data_file}.")
+        return self.traffic_data
+
+    def preprocess_traffic_data(self):
+        # Load traffic data if not already loaded
+        if self.traffic_data.empty:
+            self.__load_traffic_data()
+
+        logger.log_info("Starting traffic data preprocessing...")
+
+        # Get only the timestamp columns (exclude first column: edgeID)
+        data_only = self.traffic_data.iloc[:, 1:]
+
+        # Iterate over rows
+        for index, row in data_only.iterrows():
+            values = row.values
+            for i in range(len(values)):
+                if pd.isna(values[i]):
+                    left = values[i - 1] if i > 0 else None
+                    right = values[i + 1] if i < len(values) - 1 else None
+
+                    # Fill missing values with average or neighbor
+                    if left is not None and right is not None and not pd.isna(left) and not pd.isna(right):
+                        values[i] = (left + right) / 2
+                    elif left is not None and not pd.isna(left):
+                        values[i] = left
+                    elif right is not None and not pd.isna(right):
+                        values[i] = right
+            # Update row
+            data_only.iloc[index] = values
+
+        # Update the full DataFrame
+        self.traffic_data.iloc[:, 1:] = data_only
+
+        # Save back to CSV
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'traffic_data', self.traffic_data_file)
+        self.traffic_data.to_csv(file_path, index=False)
+        logger.log_info("Traffic data preprocessing complete. Missing values filled.")
+        
+
+    def append(self, new_data_array, timestamp):
+        """
+        Appends a new column with the given timestamp and data values.
+
+        Parameters:
+        - new_data_array (list or Series): List of traffic values (must match number of rows).
+        - timestamp (str): The timestamp label for the new column.
+        """
+        if self.traffic_data.empty:
+            self.__load_traffic_data()
+
+        if len(new_data_array) != len(self.traffic_data):
+            logger.log_error("Length of new data does not match number of edges.")
+            return
+
+        self.traffic_data[timestamp] = new_data_array
+        logger.log_info(f"New column for timestamp {timestamp} appended successfully.")
+
+        # Save to CSV
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'traffic_data', self.traffic_data_file)
+        self.traffic_data.to_csv(file_path, index=False)
+        logger.log_info(f"Updated traffic data saved to {self.traffic_data_file}.")
