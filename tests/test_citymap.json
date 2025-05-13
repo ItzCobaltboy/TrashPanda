@@ -1,0 +1,22 @@
+{
+    "nodes" :  [
+        {"id": "Node1"}, 
+        {"id": "Node2"},
+        {"id": "Node3"},
+        {"id": "Node4"},
+        {"id": "Node5"},
+        {"id": "Node6"},
+        {"id": "Node7"},
+        {"id": "Node8"}
+    ],
+
+    "edges" :  [
+        {"source": "Node1", "target": "Node2", "weight": 1, "id":"edge1"},
+        {"source": "Node2", "target": "Node3", "weight": 2, "id":"edge2"},
+        {"source": "Node3", "target": "Node4", "weight": 3, "id":"edge3"},
+        {"source": "Node4", "target": "Node5", "weight": 4, "id":"edge4"},
+        {"source": "Node5", "target": "Node6", "weight": 5, "id":"edge5"},
+        {"source": "Node6", "target": "Node7", "weight": 6, "id":"edge6"},
+        {"source": "Node7", "target": "Node8", "weight": 7, "id":"edge7"}
+    ]
+}
