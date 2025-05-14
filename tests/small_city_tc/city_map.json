@@ -1,0 +1,16 @@
+{
+  "nodes": [
+    {"id": "Node1"},
+    {"id": "Node2"},
+    {"id": "Node3"},
+    {"id": "Node4"},
+    {"id": "Node5"}
+  ],
+  "edges": [
+    {"source": "Node6", "target": "Node4", "weight": 10, "id": "edge1"},
+    {"source": "Node8", "target": "Node5", "weight": 3, "id": "edge2"},
+    {"source": "Node7", "target": "Node5", "weight": 10, "id": "edge3"},
+    {"source": "Node4", "target": "Node10", "weight": 1, "id": "edge4"},
+    {"source": "Node1", "target": "Node6", "weight": 1, "id": "edge5"}
+  ]
+}
