@@ -13,6 +13,8 @@ trash_source_file = os.path.join(os.path.dirname(__file__), '..','synthetic_tras
 tf = pd.read_csv(traffic_input_file)
 tf.loc[:, 'EdgeID'] = [f"edge{i}" for i in range(len(tf))]
 
+tf.drop(columns=[f'Unnamed: 0.{i}' for i in range(1, 10)] + ['Unnamed: 0'], inplace=True, errors='ignore')
+
 tf.to_csv(traffic_input_file, index=True)
 
 
