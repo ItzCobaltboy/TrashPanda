@@ -20,17 +20,18 @@ columns = ['edgeID', 'trashcanID'] + dates
 def generate_behavior_pattern(behavior_type, num_days):
     fill = []
     current = 0
-
     day = 0
+
     while day < num_days:
         if current >= 100:
             current = 0  # Simulate trash pickup
 
         if behavior_type == 'normal':
-            step = np.random.randint(1, 5)
+            step_base = np.random.randint(1, 5)
             interval = np.random.randint(3, 7)
             for _ in range(interval):
-                current = min(100, current + step)
+                step = step_base + np.random.normal(0, 1)  # slight variation
+                current = min(100, current + max(0, int(round(step))))
                 fill.append(current)
                 day += 1
                 if day >= num_days:
@@ -43,12 +44,13 @@ def generate_behavior_pattern(behavior_type, num_days):
                 day += 1
                 if day >= num_days:
                     break
-            # Then resume normal fill
             behavior_type = 'normal'
 
         elif behavior_type == 'party':
-            for _ in range(np.random.randint(1, 3)):
-                current = min(100, current + np.random.randint(30, 60))
+            spikes = np.random.randint(1, 3)
+            for _ in range(spikes):
+                spike = np.random.randint(25, 60) + np.random.normal(0, 5)
+                current = min(100, current + max(0, int(round(spike))))
                 fill.append(current)
                 day += 1
                 if day >= num_days:
@@ -56,10 +58,11 @@ def generate_behavior_pattern(behavior_type, num_days):
             behavior_type = 'normal'
 
         elif behavior_type == 'fast':
-            step = np.random.randint(10, 20)
-            interval = np.random.randint(3, 5)
+            step_base = np.random.randint(10, 18)
+            interval = np.random.randint(3, 6)
             for _ in range(interval):
-                current = min(100, current + step)
+                step = step_base + np.random.normal(0, 2)
+                current = min(100, current + max(0, int(round(step))))
                 fill.append(current)
                 day += 1
                 if day >= num_days:
@@ -67,14 +70,16 @@ def generate_behavior_pattern(behavior_type, num_days):
 
         elif behavior_type == 'erratic':
             for _ in range(np.random.randint(4, 10)):
-                change = np.random.randint(-5, 10)
-                current = min(100, max(0, current + change))
+                change = np.random.randint(-3, 10) + np.random.normal(0, 2)
+                current = min(100, max(0, current + int(round(change))))
                 fill.append(current)
                 day += 1
                 if day >= num_days:
                     break
             behavior_type = 'normal'
+
     return fill
+
 
 # Generate data
 data = []
@@ -90,5 +95,5 @@ for i in range(1, num_trashcans + 1):
 
 # Create and save DataFrame
 df = pd.DataFrame(data, columns=columns)
-df.to_csv("synthetic_trashcan_fill_levels.csv", index=False)
-print("Synthetic dataset saved as 'synthetic_trashcan_fill_levels.csv'")
+df.to_csv("synthetic_trashcan_fill_levels2.csv", index=False)
+print("Synthetic dataset saved as 'synthetic_trashcan_fill_levels2.csv'")
