@@ -4,6 +4,7 @@ import yaml
 import shutil
 from app.logger import logger
 from app.telemetry import db_log_launch_telemetry, db_log_ping
+from app.preprocessor import validate_trashcan_data, validate_city_map, validate_traffic_data
 
 # create the FastAPI app instance
 app = FastAPI()
@@ -51,7 +52,7 @@ def get_city_map(file: UploadFile = File(...)):
     # Save the uploaded file to the specified directory
     # file_path = uploads
     file_path = os.path.join(city_map_url, file.filename)
-    db_log_ping(file.filename, "city_map", 200)
+    db_log_ping("Unknown Client" ,"city_map", file_path , 200)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)   
 
@@ -59,6 +60,10 @@ def get_city_map(file: UploadFile = File(...)):
     global latest_city_map
     latest_city_map = file.filename
     # keep record of latest file in the database
+
+    if validate_city_map(latest_city_map) == False:
+        log_error("Invalid city map data.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid city map data. Some edges are connected to invalid nodes.")
 
     log_info(f"File {file.filename} uploaded successfully to {city_map_url}.")
     return {"INFO": "File uploaded successfully"}
@@ -73,7 +78,7 @@ async def get_trashcan_data(file: UploadFile = File(...)):
     # Save the uploaded file to the specified directory
     # file_path = uploads
     file_path = os.path.join(trashcan_data_url, file.filename)
-    db_log_ping(file.filename, "trashcan_data", 200)
+    db_log_ping("Unknown Client" ,"trashcan_data", file_path , 200)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -82,6 +87,9 @@ async def get_trashcan_data(file: UploadFile = File(...)):
     latest_trashcan_data = file.filename
     # keep record of latest file in the database
 
+    if validate_trashcan_data(latest_trashcan_data, latest_city_map) == False:
+        log_error("Invalid trashcan data.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid trashcan data. Some trashcans are not present to valid edges.")
 
     log_info(f"File {file.filename} uploaded successfully to {trashcan_data_url}.")
     return {"INFO": "File uploaded successfully"}
@@ -96,7 +104,7 @@ def get_road_data(file: UploadFile = File(...)):
     # Save the uploaded file to the specified directory
     # file_path = uploads
     file_path = os.path.join(traffic_data_url, file.filename)
-    db_log_ping(file.filename, "road_data", 200)
+    db_log_ping("Unknown Client" ,"road_data", file_path , 200)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
@@ -105,6 +113,9 @@ def get_road_data(file: UploadFile = File(...)):
     global latest_traffic_data 
     latest_traffic_data = file.filename
     # keep record of latest file in the database
+    if validate_traffic_data(latest_traffic_data, latest_city_map) == False:
+        log_error("Invalid traffic data.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid traffic data. Some edges are not present in map")
 
     log_info(f"File {file.filename} uploaded successfully to {traffic_data_url}.")
     return {"INFO": "File uploaded successfully"}

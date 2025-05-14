@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import yaml
-from logger import logger
+from app.logger import logger
 
 
 logger = logger()
@@ -209,3 +209,114 @@ class TrafficDataHandler:
         file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'traffic_data', self.traffic_data_file)
         self.traffic_data.to_csv(file_path, index=False)
         logger.log_info(f"Updated traffic data saved to {self.traffic_data_file}.")
+
+
+
+def validate_trashcan_data(trashcan_data_file = None, city_map_file = None):
+    """
+    Validates the trashcan data against the city map.
+
+    Parameters:
+    - trashcan_data_file (str): Path to the trashcan data CSV file.
+    - city_map_file (str): Path to the city map JSON file.
+
+    Returns:
+    - bool: True if valid, False otherwise.
+    """
+
+    if trashcan_data_file is None or city_map_file is None:
+        logger.log_error("Trashcan data file or city map file not provided.")
+        return False
+
+    city_map_file = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'maps', city_map_file)
+    trashcan_data_file = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'trash_data', trashcan_data_file)
+
+     # Load the city map
+    with open(city_map_file, 'r') as f:
+        city_map = json.load(f)
+
+    # Create a set of valid edge IDs from the city map
+    valid_edge_ids = {edge['id'] for edge in city_map['edges']}  # optimized to use set
+
+    # Load the trashcan data
+    trashcan_data = pd.read_csv(trashcan_data_file)
+
+    flag = True
+
+    # Check if all edge IDs in the trashcan data are valid
+    for edge_id in trashcan_data['edgeID']:
+        if edge_id not in valid_edge_ids:
+            logger.log_error(f"Invalid edge ID {edge_id} found in trashcan data.")
+            flag = False
+
+    logger.log_info("Trashcan data validation passed.")
+    return flag
+
+def validate_traffic_data(traffic_data_file = None, city_map_file = None):
+    """
+    Validates the traffic data against the city map.
+
+    Parameters:
+    - traffic_data_file (str): Path to the traffic data CSV file.
+    - city_map_file (str): Path to the city map JSON file.
+
+    Returns:
+    - bool: True if valid, False otherwise.
+    """
+
+    if traffic_data_file is None or city_map_file is None:
+        logger.log_error("Traffic data file or city map file not provided.")
+        return False
+
+    city_map_file = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'maps', city_map_file)
+    traffic_data_file = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'traffic_data', traffic_data_file)
+
+     # Load the city map
+    with open(city_map_file, 'r') as f:
+        city_map = json.load(f)
+
+    # Create a set of valid edge IDs from the city map
+    valid_edge_ids = {edge['id'] for edge in city_map['edges']}  # optimized to use set
+
+    # Load the traffic data
+    traffic_data = pd.read_csv(traffic_data_file)
+
+    flag = True
+
+    # Check if all edge IDs in the traffic data are valid
+    for edge_id in traffic_data['EdgeID']:
+        if edge_id not in valid_edge_ids:
+            logger.log_error(f"Invalid edge ID {edge_id} found in traffic data.")
+            flag = False
+
+    logger.log_info("Traffic data validation passed.")
+    return flag
+
+def validate_city_map(city_map_file = None):
+    """
+    City map is valid if  all edges are connected to valid nodes.
+    """
+
+    if city_map_file is None:
+        logger.log_error("City map file not provided.")
+        return False
+
+    city_map_file = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'maps', city_map_file)
+
+    # Load the city map
+    with open(city_map_file, 'r') as f:
+        city_map = json.load(f)
+
+    # Create a set of valid node IDs from the city map
+    valid_node_ids = {node['id'] for node in city_map['nodes']}  # optimized to use set
+
+    flag = True
+
+    # Check if all edges are connected to valid nodes
+    for edge in city_map['edges']:
+        if edge['source'] not in valid_node_ids or edge['target'] not in valid_node_ids:
+            logger.log_error(f"Invalid edge {edge['id']} found in city map.")
+            flag = False
+
+    logger.log_info("City map validation passed.")
+    return flag
