@@ -22,6 +22,8 @@ class GraphHandler:
     def __init__(self, city_map_file):
         self.Graph = nx.Graph()
         self.__city_map_file = city_map_file
+        self.preprocess_city_map()
+        return self.Graph
 
     def __load_city_map(self):
         # City map file path
@@ -47,8 +49,11 @@ class GraphHandler:
             logger.log_info(f"Node {node['id']} added to the graph.")
         # Add edges
         for edge in city_map['edges']:
-            self.Graph.add_edge(edge['source'], edge['target'], edgeID = edge['id'], weight=edge['weight'])
-            logger.log_info(f"Edge {edge['source']} -> {edge['target']} added to the graph with weight {edge['weight']}.")
+            try:    
+                self.Graph.add_edge(edge['source'], edge['target'], edgeID = edge['id'], weight=edge['weight'])
+                logger.log_info(f"Edge {edge['source']} -> {edge['target']} added to the graph with weight {edge['weight']}.")
+            except Exception as e:
+                logger.log_error(f"Error adding edge {edge['source']} -> {edge['target']}: {e}")
         logger.log_info("City map preprocessed and graph created successfully.")
 
 
@@ -56,6 +61,8 @@ class TrashcanDataHandler:
     def __init__(self, trashcan_data_file):
         self.trashcan_data_file = trashcan_data_file
         self.trashcan_data = pd.DataFrame()
+        self.preprocess_trashcan_data()
+        return self.trashcan_data
 
     def __load_trashcan_data(self):
         # Trashcan data file path
@@ -133,6 +140,8 @@ class TrafficDataHandler:
     def __init__(self, traffic_data_file):
         self.traffic_data_file = traffic_data_file
         self.traffic_data = pd.DataFrame()
+        self.preprocess_traffic_data()
+        return self.traffic_data
 
     def __load_traffic_data(self):
         # Traffic data file path
