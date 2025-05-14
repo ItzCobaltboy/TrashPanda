@@ -8,9 +8,10 @@ from app.telemetry import db_log_launch_telemetry, db_log_ping
 # create the FastAPI app instance
 app = FastAPI()
 
+config_file = os.path.join(os.path.dirname(__file__), 'config', 'config.yaml')
 # Load configuration from YAML file
 def load_config():
-    with open("config\config.yaml", "r") as file:
+    with open(config_file, "r") as file:
         config = yaml.safe_load(file)
     return config
 

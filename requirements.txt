@@ -10,6 +10,7 @@ networkx
 pyyaml
 python-multipart
 psycopg2-binary
+colorama
 
 # Dev Dependancy
 osmnx

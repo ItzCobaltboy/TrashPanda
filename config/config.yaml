@@ -4,6 +4,7 @@ uploads:
   trash_data_dir: uploads\trash_data
 
 database:
+  online_mode: false
   db_username: postgres
   db_password: 12345678
   db_name: trash_panda_db
