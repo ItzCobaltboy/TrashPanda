@@ -47,7 +47,7 @@ city_map = {
             "source": f"Node{random.randint(1,100)}",
             "target": f"Node{random.randint(1,100)}",  # Connect to the next node in a circular manner
             "weight": random.randint(1, 80) , # Random weight for the edge
-            "edgeId": f"edge{i}"
+            "id": f"edge{i}"
         } for i in range(1, 100)
     ]
 }
