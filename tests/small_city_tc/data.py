@@ -29,28 +29,39 @@
 
 
 import pandas as pd
+import os
+import numpy as np
+import random
 
 # Path to your main Excel file
-input_file = 'synthetic_trashcan_fill_levels2.csv'
+input_file_trash = os.path.join(os.path.dirname(__file__), 'small_trash.csv')
 
 # Column name where the ID exists (e.g., 'ID' or 'id')
 id_column = 'edgeID'
 
 # List of 20 specific IDs to search for
 target_ids = [
-    'E2659','E3646','E2936','E3064','E167',
-    'E1751','E2984','E2160','E2445','E2938',
-    'E3915','E3730','E3936','E2592','E2805',
-    'E2110','E2692','E1423','E2446','E316'
+    'edge1','edge2','edge3','edge4','edge5',
+    'edge6','edge7','edge8','edge9','edge10',
+    'edge11','edge12','edge13','edge14','edge15',
+    'edge16','edge17','edge18','edge19','edge20'
 ]
 
 # Load the Excel data
-df = pd.read_csv(input_file)
+df = pd.read_csv(input_file_trash)
 
-# Filter rows with matching IDs
-filtered_df = df[df[id_column].isin(target_ids)]
+# Update first column with random values from target_values
+df.loc[:, 'edgeID'] = [random.choice(target_ids) for _ in range(len(df))]
+df.loc[:, 'trashcanID'] = [f"trashcan_{i}" for i in range(len(df))]
 
-# Save to a new CSV
-filtered_df.to_csv('filtered_rows.csv', index=False)
+df.drop(columns=['Unnamed: 0.1', 'Unnamed: 0'],inplace=True, errors='ignore')
 
-print("Filtered rows saved to 'filtered_rows.csv'")
+# print(df.head(10))
+df.to_csv(input_file_trash, index=True)
+
+input_file_traffic = os.path.join(os.path.dirname(__file__), 'small_traffic.csv')
+
+tf = pd.read_csv(input_file_traffic)
+tf.loc[:, 'EdgeID'] = [f'edge{i}' for i in range(len(tf))]
+
+tf.to_csv(input_file_traffic, index=True)
