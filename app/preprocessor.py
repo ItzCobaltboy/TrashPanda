@@ -84,7 +84,10 @@ class TrashcanDataHandler:
 
                     # Calculate average if both neighbors are valid
                     if left is not None and right is not None and not pd.isna(left) and not pd.isna(right):
-                        values[i] = (left + right) / 2
+                        if right - left < -10:
+                            values[i] = (left+100) / 2
+                        else:
+                            values[i] = (left + right) / 2
                     elif left is not None and not pd.isna(left):
                         values[i] = left
                     elif right is not None and not pd.isna(right):
