@@ -13,6 +13,7 @@ database:
 
 logging:
   logs_dir: logs
+  debug: true
 
 path_planning:
   
