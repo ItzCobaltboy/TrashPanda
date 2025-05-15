@@ -1,7 +1,7 @@
 uploads:
-  map_upload_dir: uploads\maps
-  traffic_data_dir: uploads\traffic_data
-  trash_data_dir: uploads\trash_data
+  map_upload_dir: maps
+  traffic_data_dir: traffic_data
+  trash_data_dir: trash_data
 
 database:
   online_mode: false
@@ -13,4 +13,7 @@ database:
 
 logging:
   logs_dir: logs
+
+path_planning:
+  
 

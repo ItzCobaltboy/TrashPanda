@@ -15,19 +15,22 @@ def load_config():
     config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'config.yaml')
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
-    
+config = load_config()    
 # Parameters Go here (RN none)
+maps_dir = config["uploads"]["map_upload_dir"]
+trash_data_dir = config["uploads"]["trash_data_dir"]
+traffic_data_dir = config["uploads"]["traffic_data_dir"]
+
 
 class GraphHandler:
     def __init__(self, city_map_file):
         self.Graph = nx.Graph()
         self.__city_map_file = city_map_file
         self.preprocess_city_map()
-        return self.Graph
 
     def __load_city_map(self):
         # City map file path
-        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'maps',self.__city_map_file)
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', maps_dir,self.__city_map_file)
 
         with open(file_path, 'r') as f:
             city_map = json.load(f)
@@ -62,11 +65,10 @@ class TrashcanDataHandler:
         self.trashcan_data_file = trashcan_data_file
         self.trashcan_data = pd.DataFrame()
         self.preprocess_trashcan_data()
-        return self.trashcan_data
 
     def __load_trashcan_data(self):
         # Trashcan data file path
-        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'trash_data', self.trashcan_data_file)
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', trash_data_dir, self.trashcan_data_file)
         self.trashcan_data = pd.read_csv(file_path)
         logger.log_info(f"Trashcan data loaded from {self.trashcan_data_file}.")
         return self.trashcan_data
@@ -106,7 +108,7 @@ class TrashcanDataHandler:
         self.trashcan_data.iloc[:, 2:] = data_only
 
         # Save the cleaned data back to CSV
-        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'trash_data', self.trashcan_data_file)
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', trash_data_dir, self.trashcan_data_file)
         self.trashcan_data.to_csv(file_path, index=False)
         logger.log_info("Trashcan data preprocessing complete. Missing values filled.")
 
@@ -132,7 +134,7 @@ class TrashcanDataHandler:
         logger.log_info(f"New column for timestamp {timestamp} appended successfully.")
 
         # Save the updated DataFrame back to the CSV
-        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'trash_data', self.trashcan_data_file)
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', trash_data_dir, self.trashcan_data_file)
         self.trashcan_data.to_csv(file_path, index=False)
         logger.log_info(f"Updated trashcan data saved to {self.trashcan_data_file}.")
 
@@ -141,11 +143,11 @@ class TrafficDataHandler:
         self.traffic_data_file = traffic_data_file
         self.traffic_data = pd.DataFrame()
         self.preprocess_traffic_data()
-        return self.traffic_data
+
 
     def __load_traffic_data(self):
         # Traffic data file path
-        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'traffic_data', self.traffic_data_file)
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', traffic_data_dir, self.traffic_data_file)
         self.traffic_data = pd.read_csv(file_path)
         logger.log_info(f"Traffic data loaded from {self.traffic_data_file}.")
         return self.traffic_data
@@ -182,7 +184,7 @@ class TrafficDataHandler:
         self.traffic_data.iloc[:, 1:] = data_only
 
         # Save back to CSV
-        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'traffic_data', self.traffic_data_file)
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', traffic_data_dir, self.traffic_data_file)
         self.traffic_data.to_csv(file_path, index=False)
         logger.log_info("Traffic data preprocessing complete. Missing values filled.")
         
@@ -206,7 +208,7 @@ class TrafficDataHandler:
         logger.log_info(f"New column for timestamp {timestamp} appended successfully.")
 
         # Save to CSV
-        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'traffic_data', self.traffic_data_file)
+        file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', traffic_data_dir, self.traffic_data_file)
         self.traffic_data.to_csv(file_path, index=False)
         logger.log_info(f"Updated traffic data saved to {self.traffic_data_file}.")
 

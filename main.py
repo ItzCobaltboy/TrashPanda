@@ -52,7 +52,7 @@ def get_city_map(file: UploadFile = File(...)):
     
     # Save the uploaded file to the specified directory
     # file_path = uploads
-    file_path = os.path.join(city_map_url, file.filename)
+    file_path = os.path.join("uploads",city_map_url, file.filename)
     db_log_ping("Unknown Client" ,"city_map", file_path , 200)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)   
@@ -81,7 +81,7 @@ async def get_trashcan_data(file: UploadFile = File(...)):
     
     # Save the uploaded file to the specified directory
     # file_path = uploads
-    file_path = os.path.join(trashcan_data_url, file.filename)
+    file_path = os.path.join("uploads",trashcan_data_url, file.filename)
     db_log_ping("Unknown Client" ,"trashcan_data", file_path , 200)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
@@ -110,7 +110,7 @@ def get_road_data(file: UploadFile = File(...)):
 
     # Save the uploaded file to the specified directory
     # file_path = uploads
-    file_path = os.path.join(traffic_data_url, file.filename)
+    file_path = os.path.join("uploads", traffic_data_url, file.filename)
     db_log_ping("Unknown Client" ,"road_data", file_path , 200)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
