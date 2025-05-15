@@ -38,7 +38,9 @@ def write_log(user ,level, message, color):
     print(color + f"[{level.upper()}]"+ Fore.MAGENTA + f"[{user}]" + Style.RESET_ALL + f" {message}")
     
 write_log("Logger", "info", f"Log file path: {log_file}", Fore.CYAN)
-write_log("Logger", "debug", f"DEBUGGING MODE ACTIVE", Fore.GREEN)
+
+if debug_mode:
+    write_log("Logger", "debug", f"DEBUGGING MODE ACTIVE", Fore.GREEN)
 
 class logger():
 
