@@ -9,8 +9,9 @@ from app.preprocessor import validate_trashcan_data, validate_city_map, validate
 # create the FastAPI app instance
 app = FastAPI()
 
-config_file = os.path.join(os.path.dirname(__file__), 'config', 'config.yaml')
 # Load configuration from YAML file
+config_file = os.path.join(os.path.dirname(__file__), 'config', 'config.yaml')
+
 def load_config():
     with open(config_file, "r") as file:
         config = yaml.safe_load(file)
@@ -40,10 +41,10 @@ log_info = logger.log_info
 log_error = logger.log_error
 logger.user = "Main"
 
-
-# Setup Endpoints
+################################ Setup Endpoints ##################################
 @app.post("/city_map")
 def get_city_map(file: UploadFile = File(...)):
+
     # handle city map request
     if (file.filename.endswith(".json") == False):
         log_error("Invalid file type. Only JSON files are allowed.")
@@ -58,10 +59,13 @@ def get_city_map(file: UploadFile = File(...)):
 
     # Now reopen file and parse it and save it to the database
     global latest_city_map
-    latest_city_map = file.filename
-    # keep record of latest file in the database
+    latest_city_map = {
+        "filename": file.filename,
+        "is_updated": True
+    }
 
-    if validate_city_map(latest_city_map) == False:
+    # Check if the city map has valid structure
+    if validate_city_map(latest_city_map) == False:     
         log_error("Invalid city map data.")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid city map data. Some edges are connected to invalid nodes.")
 
@@ -84,9 +88,12 @@ async def get_trashcan_data(file: UploadFile = File(...)):
 
     # Now reopen file and parse it and save it to the database
     global latest_trashcan_data
-    latest_trashcan_data = file.filename
-    # keep record of latest file in the database
-
+    latest_trashcan_data = {
+        "filename": file.filename,
+        "is_updated": True
+    }
+    
+    # Check if the trashcan data has valid structure
     if validate_trashcan_data(latest_trashcan_data, latest_city_map) == False:
         log_error("Invalid trashcan data.")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid trashcan data. Some trashcans are not present to valid edges.")
@@ -111,8 +118,12 @@ def get_road_data(file: UploadFile = File(...)):
 
     # Now reopen file and parse it and save it to the database
     global latest_traffic_data 
-    latest_traffic_data = file.filename
-    # keep record of latest file in the database
+    latest_traffic_data = {
+        "filename": file.filename,
+        "is_updated": True
+    }
+
+    # Check if traffic data has valid structure
     if validate_traffic_data(latest_traffic_data, latest_city_map) == False:
         log_error("Invalid traffic data.")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid traffic data. Some edges are not present in map")
@@ -122,9 +133,26 @@ def get_road_data(file: UploadFile = File(...)):
 
 @app.post("/train")  
 def train_model():
-    # handle model training request
+    # Check if all files are up to date
+    # System will accept the files only if all three files are updated at once on the respective endpoints
+    # If any of the files is not updated, it will not accept the files and will raise an error
+    if latest_city_map is None or latest_trashcan_data is None or latest_traffic_data is None:
+        log_error("One or more files are missing. Please upload all required files.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more files are missing. Please upload all required files.")
+    
+    if latest_city_map["is_updated"] == False or latest_trashcan_data["is_updated"] == False or latest_traffic_data["is_updated"] == False:
+        log_error("One or more files are not updated. Please upload all required files.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more files are not updated. Please upload all required files.")
+
+
+
     # Record entry for kicking in training model
     db_log_launch_telemetry(latest_city_map, latest_trashcan_data, latest_traffic_data)
+    latest_city_map["is_updated"] = False
+    latest_trashcan_data["is_updated"] = False
+    latest_traffic_data["is_updated"] = False
+
+
     log_info("Training model with the latest data files.")
 
     # stop the current model, refresh the variables and start training
