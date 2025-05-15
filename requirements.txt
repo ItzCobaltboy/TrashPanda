@@ -1,5 +1,4 @@
 # Standard Dependancy
-
 fastapi
 pydantic
 uvicorn
@@ -11,6 +10,5 @@ pyyaml
 python-multipart
 psycopg2-binary
 colorama
+sklearn
 
-# Dev Dependancy
-osmnx
