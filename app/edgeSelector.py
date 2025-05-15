@@ -5,8 +5,8 @@ import os
 import pandas as pd
 import numpy as np
 import tensorflow
-from preprocessor import GraphHandler, TrafficDataHandler, TrashcanDataHandler
-from logger import logger
+from app.preprocessor import GraphHandler, TrafficDataHandler, TrashcanDataHandler
+from app.logger import logger
 
 
 ####################### Load Config #######################
@@ -22,10 +22,10 @@ traffic_data_url = config["uploads"]["traffic_data_dir"]
 
 ####################### Setup Logger #######################
 logger = logger()
-logger.user = "PathPlanner"
+logger.user = "EdgeSelector"
 ############################################################
 
-class pathplanner:
+class edgeSelector():
     def __init__(self, city_map_file, trashcan_data_file, traffic_data_file):
 
         # Setup Paths for respective files
@@ -38,6 +38,8 @@ class pathplanner:
         self.TrafficDataHandler = TrafficDataHandler(self.traffic_data_file)
         self.TrashcanDataHandler = TrashcanDataHandler(self.trashcan_data_file)
 
+
+        logger.log_info(f"Edge Selector initialized with city map: {self.city_map_file}, trashcan data: {self.trashcan_data_file}, traffic data: {self.traffic_data_file}")
         # Setup models array
         self.trashcan_models = []
         self.traffic_models = []
@@ -69,7 +71,6 @@ class pathplanner:
         -- 2 means must visit, full trashcan
         """
 
-
         return selected_trashcans
     
     def predict_traffic(self, latest_traffic_data):
@@ -88,17 +89,7 @@ class pathplanner:
         #  Retrieve the predicted traffic data
         traffic_forecast = self.predict_traffic()
 
-        # Get a rough path for must visits
-
-        # select the neighbours of the must visit trashcan on the path
-
-
-        # compute the cost of whether taking detour is worth it or not
-
-
-        # Case 1: not worth it, then skip
-        # Case 2: worth it, then add the detour to the path
-        # Case 3: no detour possible, then skip
+        # Call the path planner class
 
 
         """
