@@ -20,6 +20,9 @@ with open(config_path, 'r') as f:
 trash_file_url = config["uploads"]["trash_data_dir"]
 window_size = config["trashcan_model"]["training_window_size"]
 epochs = config["trashcan_model"]["epochs"]
+debug_mode = config["logging"]["debug"]
+trashcan_col = config["trashcan_model"]["trashcanID_coloumn_name"]
+edge_col = config["trashcan_model"]["edgeID_coloumn_name"]
 ############################################################
 
 ####################### Setup Logger #######################
@@ -27,74 +30,92 @@ logger = logger()
 logger.user = "Trashcan_Model"
 ############################################################
 
-class TrashcanModel():
-    def __init__(self, trashcan_ID, trashcan_data_file):
-        # Set trashcan name
+import os
+import pandas as pd
+import numpy as np
+from keras.models import Sequential
+from keras.layers import LSTM, Dropout, Dense
+
+class TrashcanModel:
+    def __init__(self, trashcan_ID, full_dataframe):
         self.trashcan_ID = trashcan_ID
         logger.user = f'TC_{self.trashcan_ID}'
-        
-        # retrieve its specific data and edgeID it is present on
-        self.master_data_file = os.path.join(os.path.dirname(__file__), "..", "uploads", trash_file_url, trashcan_data_file)
-        self.trashcan_data, self.edgeID = self.load_trashcan_data()
-        
-        # set the model
+
+        self.scaler = MinMaxScaler(feature_range=(0, 1))
         self.model = None
 
-    def load_trashcan_data(self):
-        # Load the trashcan data
+        self.trashcan_data, self.edgeID = self._extract_trashcan_data(full_dataframe)
+
+    def _extract_trashcan_data(self, df):
         try:
-            master_data = pd.read_csv(self.master_data_file)
-            trashcan_data = master_data[master_data['trashcan_ID'] == self.trashcan_ID]
-            edgeID = trashcan_data['edgeID'].values[0]
-            trashcan_data = trashcan_data.drop(columns=['trashcan_ID', 'edgeID'])
+            filtered = df[df[trashcan_col] == self.trashcan_ID]
+            if filtered.empty:
+                raise ValueError("Trashcan ID not found in provided data.")
 
-            logger.log_info(f"Trashcan data loaded successfully for {self.trashcan_ID} : EdgeID = {edgeID}")
-            return trashcan_data, edgeID
+            edgeID = filtered[edge_col].values[0]
+            trashcan_series = filtered.drop(columns=[trashcan_col, edge_col])
+            logger.log_debug(f"Trashcan data extracted for {self.trashcan_ID} : EdgeID = {edgeID}")
+            return trashcan_series, edgeID
         except Exception as e:
-            logger.log_error(f"Error loading trashcan data: {e}")
-            return None
-        
-    def preprocess_data(self):
-        # Preprocess the data
-        try:
-            # Convert to numpy array
-            data = self.trashcan_data.to_numpy()
-            data = data[0]
+            logger.log_error(f"Error extracting trashcan data: {e}")
+            return None, None
 
-            # Normalize the data
-            scaler = MinMaxScaler(feature_range=(0, 1))
-            scaled_data = scaler.fit_transform(data)
+    def create_training_dataset(self):
+        values = self.trashcan_data.values.flatten()
+        values = self.scaler.fit_transform(values.reshape(-1, 1))
 
-            # Your time sequence
-            sequence = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        X, y = [], []
+        for i in range(len(values) - window_size):
+            X.append(values[i:i + window_size])
+            y.append(values[i + window_size])
 
-            # Create input-output pairs
-            X, y = [], []
-            for i in range(len(sequence) - window_size):
-                X.append(sequence[i:i + window_size])  # window as input
-                y.append(sequence[i + window_size])    # next value as output
+        return np.array(X), np.array(y).reshape(-1, 1)
 
-            # Convert to numpy arrays
-            X = np.array(X)
-            y = np.array(y)
-
-            # Reshape X for LSTM input: (samples, time_steps, features)
-            X = X.reshape((X.shape[0], X.shape[1], 1))
-
-            logger.log_info(f"Data preprocessed successfully for {self.trashcan_ID}")
-            return X, y, scaler
-        except Exception as e:
-            logger.log_error(f"Error preprocessing data: {e}")
-            return None
-        
-    def train(self, input_shape, x_train, y_train):
+    def train(self):
+        x_train, y_train = self.create_training_dataset()
 
         model = Sequential([
-            LSTM(50, return_sequences= True, input_shape=input_shape),
+            LSTM(50, return_sequences=False, input_shape=(window_size, 1)),
             Dropout(0.2),
-            LSTM(50),
-            Dropout(0.2),
+            Dense(25),
+            Dropout(0.1),
             Dense(1)
         ])
         model.compile(optimizer='adam', loss='mse')
-        model.fit(x_train, y_train, epochs=epochs, verbose=0)
+        model.fit(x_train, y_train, epochs=epochs, verbose=debug_mode)
+
+        logger.log_info(f"Model trained successfully for {self.trashcan_ID}")
+        self.model = model
+
+    def predict_fill(self, last_seq):
+        if self.model is None:
+            raise ValueError("Model not trained yet.")
+        if last_seq.shape[0] < window_size:
+            raise ValueError("Sequence length is less than window size.")
+
+        scaled_seq = self.scaler.transform(last_seq.reshape(-1, 1))
+        input_seq = scaled_seq[-window_size:].reshape(1, window_size, 1)
+
+        pred_scaled = self.model.predict(input_seq, verbose=debug_mode)[0][0]
+        return self.scaler.inverse_transform([[pred_scaled]])[0][0]
+
+    def update_with_new_data(self, updated_full_df):
+        """
+        Re-extracts trashcan data from updated DataFrame,
+        and fine-tunes model using last (window_size+1) days.
+        """
+        try:
+            self.trashcan_data, _ = self._extract_trashcan_data(updated_full_df)
+            data = self.trashcan_data.values.flatten()
+            if len(data) < window_size + 1:
+                logger.log_info(f"Not enough data to update model yet for {self.trashcan_ID}")
+                return
+
+            data = self.scaler.transform(data.reshape(-1, 1))
+            x_new = data[-(window_size + 1):-1]
+            y_new = data[-1]
+
+            self.model.fit(x_new.reshape(1, window_size, 1), np.array([[y_new]]), epochs=1, verbose=debug_mode)
+            logger.log_debug(f"Model updated with new row data for {self.trashcan_ID}")
+        except Exception as e:
+            logger.log_error(f"Error during online update: {e}")
