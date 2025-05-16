@@ -117,29 +117,37 @@ class TrashcanDataHandler:
 
         
 
-    def append(self, new_data_array, timestamp):
+    def append(self, new_data_dict, timestamp):
         """
-        Appends a new column with the given timestamp and data values.
+        Appends a new column with the given timestamp, inserting the value
+        for each trashcanID as specified in the dictionary.
 
         Parameters:
-        - new_data_array (list or Series): List of fill percentages (must match number of rows).
+        - new_data_dict (dict): Dictionary of {trashcanID: fill_value}
         - timestamp (str): The timestamp label for the new column.
         """
         if self.trashcan_data.empty:
             self.__load_trashcan_data()
 
-        if len(new_data_array) != len(self.trashcan_data):
-            logger.log_error("Length of new data does not match number of trashcans.")
-            return
+        # Initialize the new column with NaN
+        self.trashcan_data[timestamp] = np.nan
 
-        # Add the new column
-        self.trashcan_data[timestamp] = new_data_array
-        logger.log_info(f"New column for timestamp {timestamp} appended successfully.")
+        # Fill in the values using the dictionary
+        for trashcan_id, value in new_data_dict.items():
+            mask = self.trashcan_data["trashcanID"] == trashcan_id
+            if not mask.any():
+                logger.log_warning(f"TrashcanID {trashcan_id} not found in data. Skipping.")
+                continue
+            self.trashcan_data.loc[mask, timestamp] = value
+            logger.log_debug(f"Appended value {value} for trashcanID {trashcan_id} at timestamp {timestamp}.")
+
+        logger.log_info(f"New column for timestamp {timestamp} appended using trashcanID dictionary.")
 
         # Save the updated DataFrame back to the CSV
         file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', trash_data_dir, self.trashcan_data_file)
-        self.trashcan_data.to_csv(file_path, index=False)
+        self.trashcan_data.to_csv(file_path, index=True)
         logger.log_info(f"Updated trashcan data saved to {self.trashcan_data_file}.")
+
 
 class TrafficDataHandler:
     def __init__(self, traffic_data_file):
