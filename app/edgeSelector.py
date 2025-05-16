@@ -7,7 +7,7 @@ import numpy as np
 import tensorflow
 from app.preprocessor import GraphHandler, TrafficDataHandler, TrashcanDataHandler
 from app.logger import logger
-from app.trashcan_model import TrashcanModel
+from trashcan_model import TrashcanModel
 
 
 ####################### Load Config #######################
@@ -19,6 +19,8 @@ with open(config_path, 'r') as f:
 city_map_url = config["uploads"]["map_upload_dir"]
 trashcan_data_url = config["uploads"]["trash_data_dir"]
 traffic_data_url = config["uploads"]["traffic_data_dir"]
+
+batch_size = config["edge_selector"]["training_batch_size"]
 ##########################################################
 
 ####################### Setup Logger #######################
@@ -70,6 +72,7 @@ class edgeSelector():
 
 
         # Select the trashcans that are not full but will get full in given days
+        # Select Trashcans must be visited today
 
 
         # Return the selection
@@ -106,6 +109,41 @@ class edgeSelector():
             logger.log_debug(f"Initialized model for trashcan {trashcan_id} on edge {edge_id}.")
         
         logger.log_info(f"{len(self.trashcan_models)} trashcan models initialized successfully.")
+
+    def train_models_parallel(self, models, batch_size):
+        """
+        Train multiple models in parallel using tf.distribute strategy if GPU is available.
+
+        Parameters:
+        - models (list): list of model objects, each with a .train() method.
+        - batch_size (int): number of models to train in parallel (X from config).
+        """
+
+        gpus = tensorflow.config.list_physical_devices('GPU')
+        gpu_available = len(gpus) > 0
+
+        if not gpu_available:
+            logger.log_info("GPU not available. Training models sequentially.")
+            for model in models:
+                model.train()
+            return
+
+        strategy = tensorflow.distribute.MirroredStrategy()
+        logger.log_info(f"GPU detected. Using MirroredStrategy with {strategy.num_replicas_in_sync} replicas.")
+
+        # Train models in batches of batch_size
+        for i in range(0, len(models), batch_size):
+            batch = models[i:i+batch_size]
+            logger.log_info(f"Training batch of {len(batch)} models in parallel...")
+
+            # Run training in the scope of distribution strategy
+            with strategy.scope():
+                # Start parallel training - here you can adapt depending on how model.train() is implemented
+                # For example, if model.train() returns a tf.function, you can vectorize or map it
+                # Otherwise, run them sequentially inside the scope but benefit from GPU parallelism
+                for model in batch:
+                    model.train()
+
 
 
     def select_edges(self, selected_trashcans):
