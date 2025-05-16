@@ -15,6 +15,10 @@ logging:
   logs_dir: logs
   debug: true
 
+trashcan_model:
+  training_window_size: 21 # Number of days for which you want to consider the trends for trashcan model prediction, 21 implies model gives out output on basis of past 21 days
+
+
 path_planning:
   # System plans path to mandatory edges and takes detours to visit optional edges only if it is worth it
   # A detour is taken depending on cost to visit the optional edge vs reward you gain for emptying trash on those edges
