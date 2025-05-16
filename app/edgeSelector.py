@@ -34,7 +34,6 @@ class edgeSelector():
         self.traffic_data_file = os.path.join(os.path.dirname(__file__),"..", "uploads", traffic_data_url, traffic_data_file)
         
         # Setup the file handlers
-        self.GraphHandler = GraphHandler(self.city_map_file)
         self.TrafficDataHandler = TrafficDataHandler(self.traffic_data_file)
         self.TrashcanDataHandler = TrashcanDataHandler(self.trashcan_data_file)
 
@@ -61,6 +60,7 @@ class edgeSelector():
 
         # Select the trashcans that are not full but will get full in given days
 
+
         # Return the selection
         """
         selected_trashcans is an dictionary with the following keys:
@@ -73,26 +73,16 @@ class edgeSelector():
 
         return selected_trashcans
     
-    def predict_traffic(self, latest_traffic_data):
-        # Predict the traffic data using the models
-        # Return the predicted traffic data as a dictionary
-
-        return latest_traffic_data
     
-    def get_path(self, start, end):
-        
-        path = []
+    def select_edges(self, selected_trashcans):
+        selected_edges = {}
+
+        '''
+        Returns a dictionary with all the edgeIDs marked as 0, 1, 2
+        2 == must visit
+        1 == visit if worth it
+        0 == doesn't matter
+        '''
 
 
-        #  Retrieve the to be vsited trashcans
-        selected_trashcans = self.select_trashcans()
-        #  Retrieve the predicted traffic data
-        traffic_forecast = self.predict_traffic()
-
-        # Call the path planner class
-
-
-        """
-        Path is defined by an array of node names to follow, the system returns a cyclic path always
-        """
-        return path
+        return selected_edges
