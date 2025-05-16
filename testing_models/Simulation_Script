@@ -1,0 +1,68 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import timedelta
+import random
+
+# Load your GitHub data
+trashcan_df = pd.read_csv("synthetic_trashcan_fill_levels2.csv", parse_dates=["timestamp"])
+traffic_df = pd.read_csv("synthetic_traffic_congestion.csv", parse_dates=["timestamp"])
+
+# Make sure data is sorted
+trashcan_df.sort_values(by=["trashcan_id", "timestamp"], inplace=True)
+traffic_df.sort_values(by=["edge_id", "timestamp"], inplace=True)
+
+# Simulate garbage fill levels with possible noise or events
+def simulate_fill_update(trashcan_df, noise_std=0.5, empty_prob=0.01):
+    simulated_df = trashcan_df.copy()
+    for can_id in simulated_df["trashcan_id"].unique():
+        can_df = simulated_df[simulated_df["trashcan_id"] == can_id]
+        fill_level = 0
+        new_levels = []
+        emptied_flags = []
+        for idx, row in can_df.iterrows():
+            # Add some random fluctuation
+            delta = max(0, np.random.normal(loc=1.5, scale=noise_std))
+            # Emptying event
+            emptied = random.random() < empty_prob
+            if emptied or fill_level >= 100:
+                fill_level = 0
+            else:
+                fill_level = min(100, fill_level + delta)
+            new_levels.append(round(fill_level, 2))
+            emptied_flags.append(emptied)
+        simulated_df.loc[simulated_df["trashcan_id"] == can_id, "fill_level"] = new_levels
+        simulated_df.loc[simulated_df["trashcan_id"] == can_id, "emptied"] = emptied_flags
+    return simulated_df
+
+# Simulate congestion by applying sinusoidal pattern + random noise
+def simulate_traffic_update(traffic_df):
+    simulated_df = traffic_df.copy()
+    simulated_df["hour"] = simulated_df["timestamp"].dt.hour
+    simulated_df["congestion_level"] = simulated_df["hour"].apply(
+        lambda h: round(np.clip(
+            0.5 + 0.4 * np.sin((h - 6) * np.pi / 12) + np.random.normal(0, 0.1), 0, 1), 2)
+    )
+    return simulated_df.drop(columns="hour")
+
+# Apply simulation
+updated_trashcan_df = simulate_fill_update(trashcan_df)
+updated_traffic_df = simulate_traffic_update(traffic_df)
+
+# Optionally save
+updated_trashcan_df.to_csv("simulated_trashcan_fill_levels.csv", index=False)
+updated_traffic_df.to_csv("simulated_traffic_congestion.csv", index=False)
+
+# Optional: plot a sample
+sample_can = updated_trashcan_df[updated_trashcan_df["trashcan_id"] == updated_trashcan_df["trashcan_id"].unique()[0]]
+plt.figure(figsize=(10, 4))
+plt.plot(sample_can["timestamp"], sample_can["fill_level"])
+plt.title(f"Simulated Fill Levels - {sample_can['trashcan_id'].iloc[0]}")
+plt.ylabel("Fill Level (%)")
+plt.xlabel("Timestamp")
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.grid(True)
+plt.show()
+
+print("✅ Simulation complete. New CSVs saved.")

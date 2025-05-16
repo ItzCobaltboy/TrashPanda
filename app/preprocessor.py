@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import yaml
-from app.logger import logger
+from logger import logger
 
 
 logger = logger()
@@ -49,12 +49,12 @@ class GraphHandler:
         # Add nodes
         for node in city_map['nodes']:
             self.Graph.add_node(node['id'])
-            logger.log_info(f"Node {node['id']} added to the graph.")
+            logger.log_debug(f"Node {node['id']} added to the graph.")
         # Add edges
         for edge in city_map['edges']:
             try:    
                 self.Graph.add_edge(edge['source'], edge['target'], edgeID = edge['id'], weight=edge['weight'])
-                logger.log_info(f"Edge {edge['source']} -> {edge['target']} added to the graph with weight {edge['weight']}.")
+                logger.log_debug(f"Edge {edge['source']} -> {edge['target']} added to the graph with weight {edge['weight']}.")
             except Exception as e:
                 logger.log_error(f"Error adding edge {edge['source']} -> {edge['target']}: {e}")
         logger.log_info("City map preprocessed and graph created successfully.")
@@ -101,6 +101,9 @@ class TrashcanDataHandler:
                         values[i] = left
                     elif right is not None and not pd.isna(right):
                         values[i] = right
+
+                    # log the error handling
+                    logger.log_debug(f"Missing value at index {index}, column {i} filled with {values[i]}.")
             # Update the row in DataFrame
             data_only.iloc[index] = values
 
@@ -177,6 +180,8 @@ class TrafficDataHandler:
                         values[i] = left
                     elif right is not None and not pd.isna(right):
                         values[i] = right
+
+                    logger.log_debug(f"Missing value at index {index}, column {i} filled with {values[i]}.")
             # Update row
             data_only.iloc[index] = values
 
@@ -233,6 +238,9 @@ def validate_trashcan_data(trashcan_data_file = None, city_map_file = None):
     city_map_file = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'maps', city_map_file)
     trashcan_data_file = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'trash_data', trashcan_data_file)
 
+    logger.log_debug(f"City map file: {city_map_file}")
+    logger.log_debug(f"Trashcan data file: {trashcan_data_file}")
+
      # Load the city map
     with open(city_map_file, 'r') as f:
         city_map = json.load(f)
@@ -272,6 +280,9 @@ def validate_traffic_data(traffic_data_file = None, city_map_file = None):
 
     city_map_file = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'maps', city_map_file)
     traffic_data_file = os.path.join(os.path.dirname(__file__), '..', 'uploads', 'traffic_data', traffic_data_file)
+
+    logger.log_debug(f"City map file: {city_map_file}")
+    logger.log_debug(f"Traffic data file: {traffic_data_file}")
 
      # Load the city map
     with open(city_map_file, 'r') as f:

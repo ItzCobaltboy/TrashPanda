@@ -9,7 +9,7 @@ from app.preprocessor import validate_trashcan_data, validate_city_map, validate
 # create the FastAPI app instance
 app = FastAPI()
 
-# Load configuration from YAML file
+################### Load Config ##########################
 config_file = os.path.join(os.path.dirname(__file__), 'config', 'config.yaml')
 
 def load_config():
@@ -18,6 +18,14 @@ def load_config():
     return config
 
 config = load_config()
+##########################################################
+
+##################### Setup Logger #######################
+logger = logger()
+log_info = logger.log_info  
+log_error = logger.log_error
+logger.user = "Main"
+###########################################################
 
 # Loading Parameters from config
 city_map_url = config["uploads"]["map_upload_dir"]
@@ -26,20 +34,19 @@ traffic_data_url = config["uploads"]["traffic_data_dir"]
 
 # Create directories if they do not exist 
 if not os.path.exists(city_map_url):
+    logger.log_debug(f"Creating directory: {city_map_url}")
     os.makedirs(city_map_url)
 if not os.path.exists(trashcan_data_url):
+    logger.log_debug(f"Creating directory: {trashcan_data_url}")
     os.makedirs(trashcan_data_url)
 if not os.path.exists(traffic_data_url):
+    logger.log_debug(f"Creating directory: {traffic_data_url}")
     os.makedirs(traffic_data_url)
 
 latest_city_map = None
 latest_trashcan_data = None
 latest_traffic_data = None
 
-logger = logger()
-log_info = logger.log_info  
-log_error = logger.log_error
-logger.user = "Main"
 
 ################################ Setup Endpoints ##################################
 @app.post("/city_map")
@@ -48,6 +55,7 @@ def get_city_map(file: UploadFile = File(...)):
     # handle city map request
     if (file.filename.endswith(".json") == False):
         log_error("Invalid file type. Only JSON files are allowed.")
+        logger.log_debug(f"File name: {file.filename}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only JSON files are allowed.")
     
     # Save the uploaded file to the specified directory
@@ -77,6 +85,7 @@ async def get_trashcan_data(file: UploadFile = File(...)):
     # handle trashcan data request
     if (file.filename.endswith(".csv") == False):
         log_error("Invalid file type. Only CSV files are allowed.")
+        logger.log_debug(f"File name: {file.filename}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only CSV files are allowed.")
     
     # Save the uploaded file to the specified directory
@@ -106,6 +115,7 @@ def get_road_data(file: UploadFile = File(...)):
     # handle road data request
     if (file.filename.endswith(".csv") == False):
         log_error("Invalid file type. Only CSV files are allowed.")
+        logger.log_debug(f"File name: {file.filename}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only CSV files are allowed.")
 
     # Save the uploaded file to the specified directory

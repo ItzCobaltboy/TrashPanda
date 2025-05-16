@@ -14,6 +14,7 @@ def load_config():
 
 config = load_config()
 log_dir = config['logging']['logs_dir']
+debug_mode = config['logging']['debug']
 os.makedirs(log_dir, exist_ok=True)
 
 log_file = os.path.join(
@@ -38,6 +39,9 @@ def write_log(user ,level, message, color):
     
 write_log("Logger", "info", f"Log file path: {log_file}", Fore.CYAN)
 
+if debug_mode:
+    write_log("Logger", "debug", f"DEBUGGING MODE ACTIVE", Fore.GREEN)
+
 class logger():
 
     def __init__(self):
@@ -53,4 +57,7 @@ class logger():
         write_log(self.user, "error", message, Fore.RED)
 
     def log_debug(self, message):
-        write_log(self.user, "debug", message, Fore.GREEN)
+        if debug_mode:
+            write_log(self.user, "debug", message, Fore.GREEN)
+        else:
+            return
