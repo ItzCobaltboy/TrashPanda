@@ -1,0 +1,97 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.neighbors import KNeighborsClassifier
+from collections import defaultdict
+import random
+
+# -------------------------------
+# Step 1: Create Synthetic Data
+# -------------------------------
+np.random.seed(42)
+
+n_bins = 10
+days = 100
+
+# Simulate fill levels (0 to 1)
+data = []
+for day in range(days):
+    for bin_id in range(n_bins):
+        fill_level = min(1.0, np.random.normal(loc=bin_id / n_bins, scale=0.2))
+        fill_level = max(0, fill_level)
+        data.append([day, bin_id, fill_level])
+df = pd.DataFrame(data, columns=["day", "bin_id", "fill_level"])
+
+# Label bins as 'priority' if filled more than 0.8
+df["priority"] = (df["fill_level"] > 0.8).astype(int)
+
+# -----------------------------------------
+# Step 2: KNN Model to Predict Priorities
+# -----------------------------------------
+features = df[["bin_id", "fill_level"]]
+labels = df["priority"]
+
+knn = KNeighborsClassifier(n_neighbors=3)
+knn.fit(features, labels)
+
+# Predict on latest fill levels
+latest = df[df["day"] == df["day"].max()]
+latest_features = latest[["bin_id", "fill_level"]]
+latest["predicted_priority"] = knn.predict(latest_features)
+
+print("Predicted priority bins (KNN):")
+print(latest[latest["predicted_priority"] == 1])
+
+# --------------------------------------------------------
+# Step 3: Reinforcement Learning (Q-Learning) for Routing
+# --------------------------------------------------------
+
+# Environment: bins are states, action = move to another bin and collect
+q_table = defaultdict(lambda: np.zeros(n_bins))
+
+alpha = 0.1     # learning rate
+gamma = 0.9     # discount factor
+epsilon = 0.1   # exploration rate
+episodes = 1000
+
+for _ in range(episodes):
+    state = random.randint(0, n_bins - 1)
+    for _ in range(10):  # max steps per episode
+        if random.uniform(0, 1) < epsilon:
+            action = random.randint(0, n_bins - 1)
+        else:
+            action = np.argmax(q_table[state])
+
+        # Reward is the fill level of the bin we're moving to
+        reward = latest[latest["bin_id"] == action]["fill_level"].values[0]
+        old_value = q_table[state][action]
+        next_max = np.max(q_table[action])
+        
+        # Q-learning update
+        q_table[state][action] = old_value + alpha * (reward + gamma * next_max - old_value)
+        
+        state = action
+
+# ---------------------------------------------------
+# Step 4: Recommend Bins to Collect from (Q-values)
+# ---------------------------------------------------
+print("\nRecommended bin collection order (Q-learning):")
+for state in range(n_bins):
+    best_action = np.argmax(q_table[state])
+    print(f"From bin {state} -> collect bin {best_action}")
+
+# -----------------------------------------
+# Step 5: Visualize Fill and Collection
+# -----------------------------------------
+plt.figure(figsize=(10, 6))
+for bin_id in range(n_bins):
+    bin_data = df[df["bin_id"] == bin_id]
+    plt.plot(bin_data["day"], bin_data["fill_level"], label=f'Bin {bin_id}')
+
+plt.title("Fill Levels Over Time")
+plt.xlabel("Day")
+plt.ylabel("Fill Level")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
