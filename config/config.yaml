@@ -16,5 +16,17 @@ logging:
   debug: true
 
 path_planning:
-  
+  # System plans path to mandatory edges and takes detours to visit optional edges only if it is worth it
+  # A detour is taken depending on cost to visit the optional edge vs reward you gain for emptying trash on those edges
+
+  # Scaler for cost of taking detour in pathplanning against rewards 
+  # Increasing reduces tendancy for accepting detour, decreasing does the opposite, tune as per choice 
+  # Setting this to 0 will cause the system to always take detour to optional edges
+  cost_scaler: 2.0 
+
+  # Scaler for reward of taking a detour
+  # Increasing will increase tendancy for accepting detour, decreasing does the opposite
+  # Setting this to 0 will cause system to never take detour to optional edges
+  reward_scaler: 1.0
+
 
