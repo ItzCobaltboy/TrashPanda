@@ -33,6 +33,8 @@ logger = logger()
 logger.user = "EdgeSelector"
 ############################################################
 
+time = 0.0
+
 class EdgeSelector():
     def __init__(self, city_map_file, trashcan_data_file):
 
@@ -49,7 +51,8 @@ class EdgeSelector():
         self.trashcan_models = {}
         self.are_models_trained = False
 
-    
+    def get_time():
+        return time
     
     def initialize_trashcan_models(self):
         """
@@ -178,6 +181,8 @@ class EdgeSelector():
             self.are_models_trained = True
             end = time.time()
 
+            global time 
+            time = end - start
             logger.log_debug(f"All models trained in {end - start} seconds.")
 
         # Append the latest data

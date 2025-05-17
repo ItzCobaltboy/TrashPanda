@@ -130,7 +130,7 @@ def upload_files(city_map: UploadFile = File(...), trashcan_data: UploadFile = F
 es = None
 pp = None
 
-@app.post("/train")  
+@app.get("/train")  
 def train_model():
     # Check if files are present
     if latest_city_map is None or latest_trashcan_data is None:
@@ -140,11 +140,15 @@ def train_model():
     # Initilize EdgeSelector
     global es, pp
     es = EdgeSelector(city_map_file=latest_city_map, trashcan_data_file=latest_trashcan_data)
-    truth = es.train_models()
-    if truth == False:
-        log_error("Error in training models. Please check the logs.")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="failed to train models. Please check the logs.")
-    return {"INFO": "Models trained successfully"}
+
+    try:
+        truth = es.train_models()
+    except Exception as e:
+        log_error(f"Error in training models: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"failed to train models. {e}")
+
+    time = es.get_time()
+    return {"INFO": "Models trained successfully", "training_time": time}
 
 @app.post("/predict")
 def predict_trashcan_status(latest_data_file: UploadFile = File(...)):
@@ -190,9 +194,11 @@ def predict_trashcan_status(latest_data_file: UploadFile = File(...)):
     if selected_edges is None or edge_rewards is None:
         log_error("Error in selecting edges.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in selecting edges.")
-
-    path = pp.path_plan(start=start_location, edge_list=selected_edges, edge_rewards=edge_rewards)
-
+    try:
+        path = pp.path_plan(start=start_location, edge_list=selected_edges, edge_rewards=edge_rewards)
+    except Exception as e:
+        log_error(f"Error in path planning: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error in path planning: {e}")
     # handle prediction request for a specific trashcan
     # This is a placeholder for the actual prediction logic
 
