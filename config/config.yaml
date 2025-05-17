@@ -13,7 +13,7 @@ database:
 
 logging:
   logs_dir: logs
-  debug: false                            # Enable to get extended logging
+  debug: true                            # Enable to get extended logging
 
 trashcan_model:
   training_window_size: 14                # Number of days for which you want to consider the trends for trashcan model prediction, 21 implies model gives out output on basis of past 21 days

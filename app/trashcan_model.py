@@ -9,7 +9,7 @@ from keras.models import Sequential, load_model
 import os
 import yaml
 
-from logger import logger
+from .logger import logger
 
 ######################## Load Config #######################
 config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'config.yaml')

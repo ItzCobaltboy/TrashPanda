@@ -2,9 +2,13 @@ from fastapi import FastAPI, UploadFile, File, status, HTTPException
 import os
 import yaml
 import shutil
+import json
 from app.logger import logger
-from app.telemetry import db_log_launch_telemetry, db_log_ping
+# from app.telemetry import db_log_upload_telemetry, db_log_ping, retrieve_latest_files
 from app.preprocessor import validate_trashcan_data, validate_city_map, validate_traffic_data
+from app.edgeSelector import EdgeSelector
+from app.pathPlanner import PathPlanner
+import uuid
 
 # create the FastAPI app instance
 app = FastAPI()
@@ -18,6 +22,8 @@ def load_config():
     return config
 
 config = load_config()
+
+online_mode = config["database"]["online_mode"]
 ##########################################################
 
 ##################### Setup Logger #######################
@@ -32,6 +38,10 @@ city_map_url = config["uploads"]["map_upload_dir"]
 trashcan_data_url = config["uploads"]["trash_data_dir"]
 traffic_data_url = config["uploads"]["traffic_data_dir"]
 
+city_map_url = os.path.join(os.path.dirname(__file__), "uploads", city_map_url)
+trashcan_data_url = os.path.join(os.path.dirname(__file__), "uploads", trashcan_data_url)
+traffic_data_url = os.path.join(os.path.dirname(__file__), "uploads", traffic_data_url)
+
 # Create directories if they do not exist 
 if not os.path.exists(city_map_url):
     logger.log_debug(f"Creating directory: {city_map_url}")
@@ -43,139 +53,150 @@ if not os.path.exists(traffic_data_url):
     logger.log_debug(f"Creating directory: {traffic_data_url}")
     os.makedirs(traffic_data_url)
 
+
+# Initialize global variables
 latest_city_map = None
 latest_trashcan_data = None
-latest_traffic_data = None
 
+# If database mode is online, query the latest files from the database
+if online_mode == True:
+    # latest_city_map, latest_trashcan_data = retrieve_latest_files()
+    if latest_city_map is None or latest_trashcan_data is None:
+        logger.log_warning("No Latest Files found in the database")
+        latest_city_map = None
+        latest_trashcan_data = None
+    else:
+        logger.log_info(f"Last used files retreived from database: {latest_city_map}, {latest_trashcan_data}")
+        logger.log_info(f"Using these files to train the system")
 
 ################################ Setup Endpoints ##################################
-@app.post("/city_map")
-def get_city_map(file: UploadFile = File(...)):
+@app.post("/upload")
+def upload_files(city_map: UploadFile = File(...), trashcan_data: UploadFile = File(...)):
 
-    # handle city map request
-    if (file.filename.endswith(".json") == False):
+    random_id = str(uuid.uuid4())
+    city_file = os.path.join(city_map_url, f"city_map_{random_id}.json")
+    trash_file = os.path.join(trashcan_data_url, f"trashcan_data_{random_id}.csv")
+
+    city_file_name = os.path.basename(city_file)
+    trash_file_name = os.path.basename(trash_file)
+
+    logger.log_debug(f"Recieved files: {city_map.filename}, {trashcan_data.filename}")
+    logger.log_debug(f"Saving files with filename: city_map_{random_id}.json, trashcan_data_{random_id}.csv")
+    # Store both files in respective directories after renaming to something unique
+     # Save city_map
+    with open(city_file, "wb") as f:
+        shutil.copyfileobj(city_map.file, f)
+
+    # Save trashcan_data
+    with open(trash_file, "wb") as f:
+        shutil.copyfileobj(trashcan_data.file, f)
+
+    # Validate city_map
+    if not city_map.filename.endswith(".json"):
         log_error("Invalid file type. Only JSON files are allowed.")
-        logger.log_debug(f"File name: {file.filename}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only JSON files are allowed.")
+        logger.log_debug(f"File name: {city_map.filename}")
+        os.delete(city_file)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. JSON FIles expected")
     
-    # Save the uploaded file to the specified directory
-    # file_path = uploads
-    file_path = os.path.join("uploads",city_map_url, file.filename)
-    db_log_ping("Unknown Client" ,"city_map", file_path , 200)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)   
-
-    # Now reopen file and parse it and save it to the database
-    global latest_city_map
-    latest_city_map = {
-        "filename": file.filename,
-        "is_updated": True
-    }
-
-    # Check if the city map has valid structure
-    if validate_city_map(latest_city_map) == False:     
-        log_error("Invalid city map data.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid city map data. Some edges are connected to invalid nodes.")
-
-    log_info(f"File {file.filename} uploaded successfully to {city_map_url}.")
-    return {"INFO": "File uploaded successfully"}
-
-@app.post("/trashcan_data")
-async def get_trashcan_data(file: UploadFile = File(...)):
-    # handle trashcan data request
-    if (file.filename.endswith(".csv") == False):
+    if validate_city_map(city_file_name) == False:
+        log_error("Invalid city map structure.")
+        os.delete(city_file)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid city map structure. Some edges are not present in map")
+    
+    # Validate Trashcan_data
+    if not trashcan_data.filename.endswith(".csv"):
         log_error("Invalid file type. Only CSV files are allowed.")
-        logger.log_debug(f"File name: {file.filename}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only CSV files are allowed.")
-    
-    # Save the uploaded file to the specified directory
-    # file_path = uploads
-    file_path = os.path.join("uploads",trashcan_data_url, file.filename)
-    db_log_ping("Unknown Client" ,"trashcan_data", file_path , 200)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        logger.log_debug(f"File name: {trashcan_data.filename}")
+        os.remove(trash_file)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. CSV FIles expected")
 
-    # Now reopen file and parse it and save it to the database
-    global latest_trashcan_data
-    latest_trashcan_data = {
-        "filename": file.filename,
-        "is_updated": True
-    }
+    if validate_trashcan_data(trashcan_data_file=trash_file_name, city_map_file=city_file_name) == False:
+        log_error("Invalid trashcan structure.")
+        os.remove(trash_file)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid trashcan structure. Some edges are not present in map")
     
-    # Check if the trashcan data has valid structure
-    if validate_trashcan_data(latest_trashcan_data, latest_city_map) == False:
-        log_error("Invalid trashcan data.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid trashcan data. Some trashcans are not present to valid edges.")
 
-    log_info(f"File {file.filename} uploaded successfully to {trashcan_data_url}.")
+
+    # Otherwise save the files for next call
+    global latest_city_map, latest_trashcan_data
+
+    latest_city_map = f"city_map_{random_id}.json"
+    latest_trashcan_data = f"trashcan_data_{random_id}.csv"
+    # db_log_upload_telemetry(latest_city_map, latest_trashcan_data)
+
     return {"INFO": "File uploaded successfully"}
 
-@app.post("/road_data")
-def get_road_data(file: UploadFile = File(...)):    
-    # handle road data request
-    if (file.filename.endswith(".csv") == False):
-        log_error("Invalid file type. Only CSV files are allowed.")
-        logger.log_debug(f"File name: {file.filename}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Only CSV files are allowed.")
 
-    # Save the uploaded file to the specified directory
-    # file_path = uploads
-    file_path = os.path.join("uploads", traffic_data_url, file.filename)
-    db_log_ping("Unknown Client" ,"road_data", file_path , 200)
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-
-    # Now reopen file and parse it and save it to the database
-    global latest_traffic_data 
-    latest_traffic_data = {
-        "filename": file.filename,
-        "is_updated": True
-    }
-
-    # Check if traffic data has valid structure
-    if validate_traffic_data(latest_traffic_data, latest_city_map) == False:
-        log_error("Invalid traffic data.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid traffic data. Some edges are not present in map")
-
-    log_info(f"File {file.filename} uploaded successfully to {traffic_data_url}.")
-    return {"INFO": "File uploaded successfully"}
+es = None
+pp = None
 
 @app.post("/train")  
 def train_model():
-    # Check if all files are up to date
-    # System will accept the files only if all three files are updated at once on the respective endpoints
-    # If any of the files is not updated, it will not accept the files and will raise an error
-    if latest_city_map is None or latest_trashcan_data is None or latest_traffic_data is None:
-        log_error("One or more files are missing. Please upload all required files.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more files are missing. Please upload all required files.")
+    # Check if files are present
+    if latest_city_map is None or latest_trashcan_data is None:
+        log_error("No files found. Please use /upload to upload files.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No files found. Please use /upload to upload files.")
     
-    if latest_city_map["is_updated"] == False or latest_trashcan_data["is_updated"] == False or latest_traffic_data["is_updated"] == False:
-        log_error("One or more files are not updated. Please upload all required files.")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more files are not updated. Please upload all required files.")
-
-
-
-    # Record entry for kicking in training model
-    db_log_launch_telemetry(latest_city_map, latest_trashcan_data, latest_traffic_data)
-    latest_city_map["is_updated"] = False
-    latest_trashcan_data["is_updated"] = False
-    latest_traffic_data["is_updated"] = False
-
-
-    log_info("Training model with the latest data files.")
-
-    # stop the current model, refresh the variables and start training
-    # This is a placeholder for the actual training logic
-
-    return {"INFO": "Model training started."}
+    # Initilize EdgeSelector
+    global es, pp
+    es = EdgeSelector(city_map_file=latest_city_map, trashcan_data_file=latest_trashcan_data)
+    truth = es.train_models()
+    if truth == False:
+        log_error("Error in training models. Please check the logs.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="failed to train models. Please check the logs.")
+    return {"INFO": "Models trained successfully"}
 
 @app.post("/predict")
-def predict_trashcan_status():
+def predict_trashcan_status(latest_data_file: UploadFile = File(...)):
+
+    start_location = "Node1"
+    # Validate Start Location
+
+    # Validate the file
+    if not latest_data_file.filename.endswith(".json"):
+        log_error("Invalid file type. Only JSON files are allowed.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. JSON Files expected")
+    
+    latest_data = json.loads(latest_data_file.file.read())
+    
+    if es is None:
+        log_error("EdgeSelector not initialized. Please train the model first.")
+        raise HTTPException(status_code=status.HTTP_428_PRECONDITION_REQUIRED, detail="EdgeSelector not initialized. Please train the model first.")
+    else:
+        if not es.validate_latest_data(latest_data):
+            log_error("Invalid latest data structure.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid latest data structure. Some trashcanID: fill% values aare not present")
+    global pp
+    # Initialize PathPlanner
+    Graph = es.GraphHandler.Graph
+    if pp is None:
+        pp = PathPlanner(city_map=Graph)
+
+    if start_location is None:
+        log_error("Please provide a start location")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please provide a start location")
+    if str(start_location) not in Graph.nodes:
+        log_error("Invalid start location. Please check the city map.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid start location. Please check the city map.")
+
+
+
+    selected_cans, predicted_values_cans = es.select_trashcans(latest_data)
+    if selected_cans is None or predicted_values_cans is None:
+        log_error("Error in selecting trashcans.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in selecting trashcans.")
+    
+    selected_edges, edge_rewards = es.select_edges(selected_cans, predicted_values_cans)
+    if selected_edges is None or edge_rewards is None:
+        log_error("Error in selecting edges.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in selecting edges.")
+
+    path = pp.path_plan(start=start_location, edge_list=selected_edges, edge_rewards=edge_rewards)
+
     # handle prediction request for a specific trashcan
     # This is a placeholder for the actual prediction logic
 
-    return
+    return path
 
 log_info("FastAPI server started. Listening on port 8000.")
 log_info("Endpoints: /city_map, /trashcan_data, /road_data, /train, /predict")

@@ -46,7 +46,6 @@ if online_mode:
             id SERIAL PRIMARY KEY,
             city_map_file TEXT,
             trashcan_data_file TEXT,
-            traffic_data_file TEXT,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -77,18 +76,18 @@ if online_mode:
         conn.rollback()
 
 
-    def db_log_launch_telemetry(city_map_file, trashcan_data_file, traffic_data_file):
+    def db_log_upload_telemetry(city_map_file, trashcan_data_file):
         """
         Log telemetry data for the launch event.
         """
         try:
             # Insert telemetry data into the database
             cur.execute('''
-                INSERT INTO telemetry_events (city_map_file, trashcan_data_file, traffic_data_file)
+                INSERT INTO telemetry_events (city_map_file, trashcan_data_file)
                 VALUES (%s, %s, %s)
-            ''', (city_map_file, trashcan_data_file, traffic_data_file))
+            ''', (city_map_file, trashcan_data_file))
             conn.commit()
-            log_info(f"New City map launched: {city_map_file}, {trashcan_data_file}, {traffic_data_file}")
+            log_info(f"New City Set loaded: {city_map_file}, {trashcan_data_file}")
         except Exception as e:
             log_error(f"Error logging telemetry data: {e}")
             conn.rollback()  # Rollback in case of error
@@ -109,6 +108,29 @@ if online_mode:
         except Exception as e:
             log_error( f"Error logging ping data: {e}")
             conn.rollback()  # Rollback in case of error
+
+    def retrieve_latest_files():
+        """
+        Retrieve the latest files from the database.
+        """
+        try:
+            cur.execute('''
+                SELECT city_map_file, trashcan_data_file
+                FROM telemetry_events
+                ORDER BY timestamp DESC
+                LIMIT 1
+            ''')
+            result = cur.fetchone()
+            if result:
+                city_map_file, trashcan_data_file = result
+                log_info(f"Latest files retrieved: {city_map_file}, {trashcan_data_file}")
+                return city_map_file, trashcan_data_file
+            else:
+                log_info("No telemetry data found.")
+                return None, None
+        except Exception as e:
+            log_error(f"Error retrieving latest files: {e}")
+            return None, None
 else:
 
     log_info("Running in offline mode. No database connection established.")

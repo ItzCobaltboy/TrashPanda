@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import yaml
-from logger import logger
+from .logger import logger
 
 
 logger = logger()
