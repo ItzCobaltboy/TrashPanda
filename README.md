@@ -6,6 +6,8 @@ The software is built to be ready to deploy with API endpoints built using FastA
 The repository also contains some sample input data for testing the system
 <br>
 
+---
+
 # Core requirements
 
 - Python 3.10.x (otherwise Tensorflow will break)
@@ -18,6 +20,8 @@ The repository also contains some sample input data for testing the system
 - Postman (for pinging)
 
 <br>
+
+---
 
 # Installation from Source
 ## Clone Repository and Setup virtual environment
@@ -44,7 +48,7 @@ This will install all the required dependancies
 uvicorn main:app --reload
 ```
 
-<br>
+---
 
 # API Endpoint Structure
 
@@ -146,13 +150,13 @@ System will process the data and make a wise decision on path planning (Describe
 }
 ```
 
-<br>
+---
 
 # System Architecture – Trash Collection Optimization API
 
 This system is designed to process city infrastructure and real-time trashcan data to **predict trashcan fill levels** and generate **optimized collection routes** for large scale use.
 
----
+
 
 ## Overview
 
