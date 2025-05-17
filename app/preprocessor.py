@@ -145,7 +145,7 @@ class TrashcanDataHandler:
 
         # Save the updated DataFrame back to the CSV
         file_path = os.path.join(os.path.dirname(__file__), '..', 'uploads', trash_data_dir, self.trashcan_data_file)
-        self.trashcan_data.to_csv(file_path, index=True)
+        self.trashcan_data.to_csv(file_path, index=False)
         logger.log_info(f"Updated trashcan data saved to {self.trashcan_data_file}.")
 
 

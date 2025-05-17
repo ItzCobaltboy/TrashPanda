@@ -87,18 +87,20 @@ class TrashcanModel:
         logger.log_info(f"Model trained successfully for {self.trashcan_ID}")
         self.model = model
 
-    def predict_fill(self, last_seq):
+    def predict(self):
         if self.model is None:
             raise ValueError("Model not trained yet.")
-        if last_seq.shape[0] < window_size:
-            raise ValueError("Sequence length is less than window size.")
 
-        scaled_seq = self.scaler.transform(last_seq.reshape(-1, 1))
-        input_seq = scaled_seq[-window_size:].reshape(1, window_size, 1)
+        values = self.trashcan_data.values.flatten()
+        if len(values) < window_size:
+            raise ValueError("Not enough data to make prediction.")
+
+        scaled_seq = self.scaler.transform(values[-window_size:].reshape(-1, 1))
+        input_seq = scaled_seq.reshape(1, window_size, 1)
 
         pred_scaled = self.model.predict(input_seq, verbose=debug_mode)[0][0]
         return self.scaler.inverse_transform([[pred_scaled]])[0][0]
-
+    
     def update_with_new_data(self, updated_full_df):
         """
         Re-extracts trashcan data from updated DataFrame,

@@ -13,7 +13,7 @@ database:
 
 logging:
   logs_dir: logs
-  debug: true
+  debug: false
 
 trashcan_model:
   training_window_size: 14 # Number of days for which you want to consider the trends for trashcan model prediction, 21 implies model gives out output on basis of past 21 days
@@ -22,7 +22,7 @@ trashcan_model:
   edgeID_coloumn_name: edgeID
 
 edge_selector:
-  training_batch_size: 5
+  training_batch_size: 10
 
 path_planning:
   # System plans path to mandatory edges and takes detours to visit optional edges only if it is worth it

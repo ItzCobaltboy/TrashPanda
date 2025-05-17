@@ -1,3 +1,4 @@
+import threading
 import networkx
 import json
 import yaml
@@ -5,8 +6,8 @@ import os
 import pandas as pd
 import numpy as np
 import tensorflow
-from app.preprocessor import GraphHandler, TrafficDataHandler, TrashcanDataHandler
-from app.logger import logger
+from preprocessor import GraphHandler, TrafficDataHandler, TrashcanDataHandler
+from logger import logger
 from trashcan_model import TrashcanModel
 
 
@@ -19,7 +20,6 @@ with open(config_path, 'r') as f:
 city_map_url = config["uploads"]["map_upload_dir"]
 trashcan_data_url = config["uploads"]["trash_data_dir"]
 traffic_data_url = config["uploads"]["traffic_data_dir"]
-
 batch_size = config["edge_selector"]["training_batch_size"]
 ##########################################################
 
@@ -43,6 +43,7 @@ class edgeSelector():
         logger.log_info(f"Edge Selector initialized with city map: {self.city_map_file}, trashcan data: {self.trashcan_data_file}, traffic data: {self.traffic_data_file}")
         # Setup models array
         self.trashcan_models = {}
+        self.are_models_trained = False
 
     def select_trashcans(self, latest_trashcan_data):
         selected_trashcans = {}
@@ -56,25 +57,42 @@ class edgeSelector():
                 logger.log_error(f"Trashcan ID {trashcan_id} not found in the existing data.")
                 raise ValueError(f"Trashcan ID {trashcan_id} not found in the existing data.")
                 continue
-        # Append the latest data
-        self.TrashcanDataHandler.append(latest_trashcan_data)
-
 
         # Copy all trashcan IDs to output
         for trashcan_id in self.TrashcanDataHandler.trashcan_data["trashcanID"].values:
             selected_trashcans[trashcan_id] = 0
 
-        # Initialize all models for each trashcan
-        self.initialize_trashcan_models()
-
         # if u have GPU, deploy multiple for training
-        # predict the trashcan data
+        # self.train_models_parallel(self.trashcan_models, batch_size)
+        if self.are_models_trained == False:
+            # Initialize all models for each trashcan
+            self.initialize_trashcan_models()
+            # Train all models in parallel
+            self.train_models_parallel(batch_size)
+            self.are_models_trained = True
 
+
+
+        # predict the trashcan data
+        predicted_trash_values = {}
+        for trashcan_id, model in self.trashcan_models.items():
+            predicted_trash_values[trashcan_id] = model.predict()
 
         # Select the trashcans that are not full but will get full in given days
         # Select Trashcans must be visited today
 
 
+        # Append the latest data
+        self.TrashcanDataHandler.append(latest_trashcan_data, timestamp="DAY")
+
+        # update the models to last data
+        for trashcan_id, model in self.trashcan_models.items():
+            model.update_with_new_data(self.TrashcanDataHandler.trashcan_data)
+
+
+        logger.log_info(f"PREDICTED DATA: {predicted_trash_values}")
+
+            
         # Return the selection
         """
         selected_trashcans is an dictionary with the following keys:
@@ -103,14 +121,14 @@ class edgeSelector():
             self.trashcan_to_edge[trashcan_id] = edge_id
 
             # Initialize model for this trashcan (assuming your model takes a timeseries array)
-            model = TrashcanModel(trashcan_id=trashcan_id, full_dataframe=df)   
+            model = TrashcanModel(trashcan_ID=trashcan_id, full_dataframe=df)   
             self.trashcan_models[trashcan_id] = model
 
             logger.log_debug(f"Initialized model for trashcan {trashcan_id} on edge {edge_id}.")
         
         logger.log_info(f"{len(self.trashcan_models)} trashcan models initialized successfully.")
 
-    def train_models_parallel(self, models, batch_size):
+    def train_models_parallel(self, batch_size):
         """
         Train multiple models in parallel using tf.distribute strategy if GPU is available.
 
@@ -124,25 +142,33 @@ class edgeSelector():
 
         if not gpu_available:
             logger.log_info("GPU not available. Training models sequentially.")
-            for model in models:
+            for model in self.trashcan_models.values():
                 model.train()
             return
+        
+        for gpu in gpus:
+            tensorflow.config.experimental.set_memory_growth(gpu, True)
 
         strategy = tensorflow.distribute.MirroredStrategy()
         logger.log_info(f"GPU detected. Using MirroredStrategy with {strategy.num_replicas_in_sync} replicas.")
 
-        # Train models in batches of batch_size
-        for i in range(0, len(models), batch_size):
-            batch = models[i:i+batch_size]
-            logger.log_info(f"Training batch of {len(batch)} models in parallel...")
-
-            # Run training in the scope of distribution strategy
-            with strategy.scope():
-                # Start parallel training - here you can adapt depending on how model.train() is implemented
-                # For example, if model.train() returns a tf.function, you can vectorize or map it
-                # Otherwise, run them sequentially inside the scope but benefit from GPU parallelism
-                for model in batch:
-                    model.train()
+        logger.log_info(f"Training models in parallel with batch size {batch_size}")
+        models_list = list(self.trashcan_models.values())
+        
+        for i in range(0, len(models_list), batch_size):
+            batch_models = models_list[i:i+batch_size]
+            threads = []
+            
+            for model in batch_models:
+                thread = threading.Thread(target=model.train)
+                thread.start()
+                threads.append(thread)
+            
+            # Wait for all threads in this batch to complete
+            for thread in threads:
+                thread.join()
+                
+        logger.log_info("Parallel training completed for all models")
 
 
 
@@ -158,3 +184,8 @@ class edgeSelector():
 
 
         return selected_edges
+    
+edgeSelector = edgeSelector("city_map.csv", "small_trash.csv", "traffic_data.csv")
+
+sample_trashcan_data = {f'trashcan_{i}': 50 for i in range(0, 20)}
+edgeSelector.select_trashcans(sample_trashcan_data)
