@@ -1,1 +1,0 @@
-# Database goes here, we using postgreSQL for logging
