@@ -1,28 +1,30 @@
-uploads:
-  map_upload_dir: maps
+uploads: 
+  map_upload_dir: maps                    # WARNING: File handling can break if u dont use correct seperators '\' and '/'
   traffic_data_dir: traffic_data
   trash_data_dir: trash_data
 
 database:
-  online_mode: false
+  online_mode: false                      # You can disable Databse completely for testing purposes
   db_username: postgres
-  db_password: 12345678
+  db_password: 12345678                   # Database parameters
   db_name: trash_panda_db
   db_host: localhost
   db_port: 6969
 
 logging:
   logs_dir: logs
-  debug: false
+  debug: false                            # Enable to get extended logging
 
 trashcan_model:
-  training_window_size: 14 # Number of days for which you want to consider the trends for trashcan model prediction, 21 implies model gives out output on basis of past 21 days
-  epochs: 50
-  trashcanID_coloumn_name: trashcanID
+  training_window_size: 14                # Number of days for which you want to consider the trends for trashcan model prediction, 21 implies model gives out output on basis of past 21 days
+  epochs: 50                              # Number of Epoch cycles to train per trashcan
+  trashcanID_coloumn_name: trashcanID     # Set the respective coloumn names according to database
   edgeID_coloumn_name: edgeID
 
 edge_selector:
-  training_batch_size: 10
+  training_batch_size: 20
+  trashcan_threshold_mandatory: 70                  # Threshold for % fill of trashcan to be considered full
+  trashcan_threshold_optional: 50
 
 path_planning:
   # System plans path to mandatory edges and takes detours to visit optional edges only if it is worth it

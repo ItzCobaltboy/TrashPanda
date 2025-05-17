@@ -1,5 +1,0 @@
-{
-    "nodes": [{"id": 1}, {"id": 2}],
-    "edges": [{"source": 1, "target": 2, "id": "edge_1", "weight": 5}]
-}
-  

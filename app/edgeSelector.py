@@ -9,7 +9,12 @@ import tensorflow
 from preprocessor import GraphHandler, TrafficDataHandler, TrashcanDataHandler
 from logger import logger
 from trashcan_model import TrashcanModel
+import threading
+import random
+import time
 
+
+from pathPlanner import PathPlanner
 
 ####################### Load Config #######################
 config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'config.yaml')
@@ -21,6 +26,10 @@ city_map_url = config["uploads"]["map_upload_dir"]
 trashcan_data_url = config["uploads"]["trash_data_dir"]
 traffic_data_url = config["uploads"]["traffic_data_dir"]
 batch_size = config["edge_selector"]["training_batch_size"]
+trashcan_threshold_mandatory = config["edge_selector"]["trashcan_threshold_mandatory"]
+trashcan_threshold_optional = config["edge_selector"]["trashcan_threshold_optional"]
+trashcan_col = config["trashcan_model"]["trashcanID_coloumn_name"]
+edge_col = config["trashcan_model"]["edgeID_coloumn_name"]
 ##########################################################
 
 ####################### Setup Logger #######################
@@ -38,6 +47,9 @@ class edgeSelector():
         
         # Setup the file handlers
         self.TrashcanDataHandler = TrashcanDataHandler(self.trashcan_data_file)
+        self.GraphHandler = GraphHandler(self.city_map_file)
+
+        self.edgeList = self.GraphHandler.get_all_edges_IDS()
 
 
         logger.log_info(f"Edge Selector initialized with city map: {self.city_map_file}, trashcan data: {self.trashcan_data_file}, traffic data: {self.traffic_data_file}")
@@ -53,46 +65,46 @@ class edgeSelector():
         """
 
         for trashcan_id, value in latest_trashcan_data.items():
-            if trashcan_id not in self.TrashcanDataHandler.trashcan_data["trashcanID"].values:
+            if trashcan_id not in self.TrashcanDataHandler.trashcan_data[trashcan_col].values:
                 logger.log_error(f"Trashcan ID {trashcan_id} not found in the existing data.")
                 raise ValueError(f"Trashcan ID {trashcan_id} not found in the existing data.")
                 continue
 
         # Copy all trashcan IDs to output
-        for trashcan_id in self.TrashcanDataHandler.trashcan_data["trashcanID"].values:
+        for trashcan_id in self.TrashcanDataHandler.trashcan_data[trashcan_col].values:
             selected_trashcans[trashcan_id] = 0
 
         # if u have GPU, deploy multiple for training
         # self.train_models_parallel(self.trashcan_models, batch_size)
         if self.are_models_trained == False:
             # Initialize all models for each trashcan
+            start = time.time()
             self.initialize_trashcan_models()
             # Train all models in parallel
             self.train_models_parallel(batch_size)
             self.are_models_trained = True
+            end = time.time()
+
+            logger.log_debug(f"All models trained in {end - start} seconds.")
 
 
+        # Select the trashcans that are not full but will get full in given days
+        # Select Trashcans must be visited today
+
+        # Append the latest data
+        self.TrashcanDataHandler.append(latest_trashcan_data, timestamp="DAY")
 
         # predict the trashcan data
         predicted_trash_values = {}
         for trashcan_id, model in self.trashcan_models.items():
             predicted_trash_values[trashcan_id] = model.predict()
 
-        # Select the trashcans that are not full but will get full in given days
-        # Select Trashcans must be visited today
+        
 
+        # create a thread to update in background while continueing to return the selected trashcans
+        self.update_trashcan_data()
 
-        # Append the latest data
-        self.TrashcanDataHandler.append(latest_trashcan_data, timestamp="DAY")
-
-        # update the models to last data
-        for trashcan_id, model in self.trashcan_models.items():
-            model.update_with_new_data(self.TrashcanDataHandler.trashcan_data)
-
-
-        logger.log_info(f"PREDICTED DATA: {predicted_trash_values}")
-
-            
+        
         # Return the selection
         """
         selected_trashcans is an dictionary with the following keys:
@@ -103,7 +115,16 @@ class edgeSelector():
         -- 2 means must visit, full trashcan
         """
 
-        return selected_trashcans
+        for trashcan_id, value in latest_trashcan_data.items():
+            if value > trashcan_threshold_mandatory:
+                selected_trashcans[trashcan_id] = 2
+            elif predicted_trash_values[trashcan_id] > trashcan_threshold_optional:
+                selected_trashcans[trashcan_id] = 1
+            else:
+                selected_trashcans[trashcan_id] = 0
+
+
+        return selected_trashcans, predicted_trash_values
     
     def initialize_trashcan_models(self):
         """
@@ -116,8 +137,8 @@ class edgeSelector():
         self.trashcan_models = {}
 
         for idx, row in df.iterrows():
-            edge_id = row["edgeID"]
-            trashcan_id = row["trashcanID"]
+            edge_id = row[edge_col]
+            trashcan_id = row[trashcan_col]
             self.trashcan_to_edge[trashcan_id] = edge_id
 
             # Initialize model for this trashcan (assuming your model takes a timeseries array)
@@ -170,22 +191,45 @@ class edgeSelector():
                 
         logger.log_info("Parallel training completed for all models")
 
+    def update_trashcan_data(self):
+        # update the models to last data
+        for trashcan_id, model in self.trashcan_models.items():
+            model.update_with_new_data(self.TrashcanDataHandler.trashcan_data)
 
 
-    def select_edges(self, selected_trashcans):
-        selected_edges = {}
+    def select_edges(self, trashcan_actions: dict, trashcan_predictions: dict) -> tuple:
+        """
+        Given a dict of trashcan actions and predictions, return:
+        1. A dict of edge actions: { edgeID: action_code } where action code is the max of all trashcans on that edge.
+        2. A dict of edge rewards: { edgeID: reward } which is the sum of predicted values of trashcans on that edge,
+        but only if the edge action is 1.
 
-        '''
-        Returns a dictionary with all the edgeIDs marked as 0, 1, 2
-        2 == must visit
-        1 == visit if worth it
-        0 == doesn't matter
-        '''
+        Parameters:
+        trashcan_actions (dict): { "trashcanID": action_code }
+        trashcan_predictions (dict): { "trashcanID": predicted_value }
 
+        Returns:
+        tuple: (edge_actions: dict, edge_rewards: dict)
+        """
+        edge_actions = {edge_id: 0 for edge_id in self.edgeList}
+        edge_rewards = {edge_id: 0 for edge_id in self.edgeList}
 
-        return selected_edges
-    
-edgeSelector = edgeSelector("city_map.csv", "small_trash.csv", "traffic_data.csv")
+        # Step 1: Compute max action code per edge
+        for trashcan_id, action_code in trashcan_actions.items():
+            edge_id = self.trashcan_to_edge.get(trashcan_id)
+            if edge_id is None:
+                logger.log_warning(f"No edge found for trashcan ID: {trashcan_id}")
+                continue
+            edge_actions[edge_id] = max(edge_actions[edge_id], action_code)
 
-sample_trashcan_data = {f'trashcan_{i}': 50 for i in range(0, 20)}
-edgeSelector.select_trashcans(sample_trashcan_data)
+        # Step 2: Compute rewards only for edges with action_code == 1
+        for trashcan_id, predicted_value in trashcan_predictions.items():
+            edge_id = self.trashcan_to_edge.get(trashcan_id)
+            if edge_id is None:
+                logger.log_warning(f"No edge found for trashcan ID: {trashcan_id}")
+                continue
+            if edge_actions[edge_id] == 1:
+                edge_rewards[edge_id] += predicted_value
+
+        return edge_actions, edge_rewards
+

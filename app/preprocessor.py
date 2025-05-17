@@ -58,6 +58,13 @@ class GraphHandler:
             except Exception as e:
                 logger.log_error(f"Error adding edge {edge['source']} -> {edge['target']}: {e}")
         logger.log_info("City map preprocessed and graph created successfully.")
+    def get_all_edges_IDS(self):
+        output = []
+
+        for edge in self.Graph.edges(data=True):
+            output.append(edge[2]['edgeID'])
+
+        return output
 
 
 class TrashcanDataHandler:
