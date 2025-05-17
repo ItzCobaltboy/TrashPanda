@@ -1,10 +1,7 @@
 import os
 import yaml
 import networkx as nx
-from logger import logger
-import matplotlib.pyplot as plt
-from preprocessor import GraphHandler
-import random
+from .logger import logger
 
 # import config
 config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'config.yaml')

@@ -6,18 +6,22 @@ The software is built to be ready to deploy with API endpoints built using FastA
 The repository also contains some sample input data for testing the system
 <br>
 
+---
+
 # Core requirements
 
 - Python 3.10.x (otherwise Tensorflow will break)
 - Tensorflow 2.12
 - FastAPI
 - Numpy/Pandas
-- PostgreSQL for database
+- PostgreSQL for database (Optional)
 
 #### Dev Tools
 - Postman (for pinging)
 
 <br>
+
+---
 
 # Installation from Source
 ## Clone Repository and Setup virtual environment
@@ -38,20 +42,172 @@ pip install -r requirements.txt
 ```
 This will install all the required dependancies 
 
-# Features
 
-## API Endpoints
+## Running
+```
+uvicorn main:app --reload
+```
 
-1) `/city_map`: POST upload `.json` file for city map as value for 'file' attribute in body, will be stored in `uploads` folder of the system locally and parsed later on.
-2) `/trashcan_data`: POST upload `.csv` file for city map as value for 'file'.
-3) `/traffic_data`: POST upload `.csv` fi;e for city map as value for 'file'.
-4) `/train`: ping this with a GET request to trigger stopping of current model, resetting the weights and execute training process on latest available city_map, trashcan and traffic data.
-5) `/predict`: ping this with current traffic and trashcan data as json value to get output from trained model, this data will be logged.
+---
 
-## General
+# API Endpoint Structure
 
-- all the input files are stored in `/uploads` for future reference.
-- The inputs are logged into database, currently PostgreSQL.
-- Dynamic retraining process.
-- All the requests are logged, including `/predict` pings, so the model can expand on the training set time to time
-- Runtime logs can be found in `/logs`.
+## **1. POST `/upload`**
+### Description
+
+Upload the city map (.json) and trashcan data (.csv) files. These are validated and stored for model training and predictions.
+
+### Request
+- Content Type: `multipart/form-data`
+- Fields: 
+    -`city_map`: JSON file describing city structure
+    -`trashcan_data`: CSV file mapping trashcan to edges, and storing time series data for training across coloumns
+```
+city_map.json
+{
+  "nodes": [
+    {"id": "Node1"}, {"id": "Node2"}, {"id": "Node3"},
+    {"id": "Node4"}, {"id": "Node5"}, {"id": "Node6"},
+    {"id": "Node7"}, {"id": "Node8"}
+  ],
+  "edges": [
+    {"source": "Node1", "target": "Node2", "weight": 1, "id": "edge1"},
+    {"source": "Node2", "target": "Node3", "weight": 2, "id": "edge2"},
+    {"source": "Node3", "target": "Node4", "weight": 3, "id": "edge3"},
+    {"source": "Node4", "target": "Node5", "weight": 4, "id": "edge4"},
+    {"source": "Node5", "target": "Node6", "weight": 5, "id": "edge5"},
+    {"source": "Node6", "target": "Node7", "weight": 6, "id": "edge6"},
+    {"source": "Node7", "target": "Node8", "weight": 7, "id": "edge7"}
+  ]
+}
+```
+
+```
+trashcan.csv
+EdgeID,TrashcanID,Day 1, Day 2, Day 3
+edge1,can1,30,40,50
+edge2,can2,60,70,80
+edge3,can3,10,20,30
+
+```
+
+### Validations
+- File types:
+    - `city_map` must be a JSON file.
+    - `trashcan_data` must be a CSV file.
+- Data Integrity:
+    - `city_map`: Must be a valid map with `weight` and `id` as attributes for edges, and edges must be valid.
+    - `trashcan_data`: All trashcans should exist on valid edgeID in the corrosponding `city_map`
+
+### Expected output
+```
+{
+"INFO": "Files uploaded Successfully"
+}
+```
+## **2. GET `/train`**
+### Description
+Requests the System to train the models based on latest provided data, will return error if data is not provided
+
+NOTE: The system will take decent amount of time to train depending on dataset size, HTTP 200 is sent after successful training, expect long request time without timeout
+
+### Request
+- None, empty request
+
+### Expected output
+```
+{
+    "INFO": "Models Trained Successfully",
+    "Time_taken": time_in_seconds
+}
+```
+
+## **3. POST `/predict`**
+### Description
+Predicts trashcan fill levels and returns an optimized path for collection. For latest data to be provided alongside
+
+### Request
+- Content Type: `multipart/form-data`
+- Fields:  
+    - `latest_data_file`: JSON file with key value pairs for new values of trash for each trashcan
+```
+{
+    "can1": 70,
+    "can2": 69,
+    "can3": 68
+}
+```
+
+### Validations 
+1) `latest_data_file` must be a JSON file.
+2) For each ID:value pair in file, ID should corrospond to a valid trashcan defined in masterdata set during upload, for any missing IDs, error will be returned
+
+### Output
+System will process the data and make a wise decision on path planning (Described in next topics)
+```
+{
+  "path": ["Node1", "Node2", "Node3", "Node4"]
+}
+```
+
+---
+
+# System Architecture – Trash Collection Optimization API
+
+This system is designed to process city infrastructure and real-time trashcan data to **predict trashcan fill levels** and generate **optimized collection routes** for large scale use.
+
+
+
+## Overview
+
+The system is composed of the following key modules:
+
+### **1. `EdgeSelector`** (Core Module)
+Working:
+- Setups, initializes models for each trashcan in dataset, and trains a model for each trashcan using parallel training if GPU is present using tensorflow.
+- Divides all trashcans into three categories namely `must visit (MV)`, `visit if worth it (VIWI)`, and `no urgency (NU)` based on two informations.
+    1) `Latest trashcan fills` for today, given by user.
+    2) `Predicted trashcan fills` predicted individually for each trashcan with its own model, these trashcans are not full now but will get full soon hence can be visited if worht it
+- Trashcans that will Overflow soon are alwas added to `MV` category, reducing chances of overflowing.
+- Trashcans that are not full now but predicted to be full soon are added to `VIWI` category.
+- Dynamically selects and returns `Edge List` and `Edge Rewards` for the map, mapping trashcans onto edges.
+    1) `Edge_list` is dict of `edgeID : 0/1/2`, describing edges into `must visit (MV)`, `visit if worth it (VIWI)`, and `no urgency (NU)` categories
+    2) `Edge_rewards` is a dict of Reward values for visiting each edge in `VIWI` category
+
+
+### **2. `PathPlanner`** (Core Module)
+Working:
+- Uses `Edge_list` and `Edge__rewards` for finding optimal route using optimized Dijkstra's.
+- We initilize the `city_map` and since its fairly static, we leverage hashing for all route, hence we create a hash of all best possible route from node `u` to `v` in the map at minimum cost.
+- During prediction, our algorithm uses preprocessed shortest paths instead of calculating it everytime, thus speeding up response time.
+- We use a `start` position and create a cyclic route by adding all `MV` edges to route at minimum cost.
+- For each `VIWI` edge, we calculate cost of taking detour from our shortest route to add that edge and compare against the reward we get for it, this comparison can be tuned by altering scalers defined in `config.yaml` file. Depending on that the system chooses to add the detour at minimum cost or ignore the `VIWI` edge.
+- Finally we return a cyclic path such that all `MW` edges are present and `VIWI` edges added if the detour is worth it
+
+### **3. `trashcan_model`** (Subcomponent of EdgeSelector)
+Responsible for:
+- Houses model methods for one single trashcan
+- We use a LSTM Based neural network for prediction of trashcan values on basis of last `X` days (configurable by user)
+- Automates data handling and stuff for each trashcan for itself
+- Used internally by `EdgeSelector` during training and prediction.
+
+---
+
+## Supporting Modules
+
+### **`logger`**
+- Custom logging wrapper for consistent logs across the system.
+- Logs debug, info, warning, and error messages.
+- Used by all core modules and the FastAPI app.
+- Log files are recorded and stored in logging directory
+- Has a debug mode for Extended logging
+
+### **`telemetry`** *(Optional / Future Use)*
+- Takes complete care of anything related to database
+- Handles telemetry like database logging, performance metrics, and analytics.
+- Tracks uploads and model training stats.
+- Currently commented out but structured for integration with database.
+
+### **`preprocessor`**
+- Supports in data validation and handles file updation for datasets.
+- Helps in preprocessing maps and datasets for ease of use.
