@@ -147,8 +147,7 @@ def train_model():
         log_error(f"Error in training models: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"failed to train models. {e}")
 
-    time = es.get_time()
-    return {"INFO": "Models trained successfully", "training_time": time}
+    return {"INFO": "Models trained successfully", "training_time": truth}
 
 @app.post("/predict")
 def predict_trashcan_status(latest_data_file: UploadFile = File(...)):
@@ -190,10 +189,17 @@ def predict_trashcan_status(latest_data_file: UploadFile = File(...)):
         log_error("Error in selecting trashcans.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in selecting trashcans.")
     
+    logger.log_debug(f"Selected trashcans: {selected_cans}")
+    logger.log_debug(f"Predicted values: {predicted_values_cans}")
+
     selected_edges, edge_rewards = es.select_edges(selected_cans, predicted_values_cans)
     if selected_edges is None or edge_rewards is None:
         log_error("Error in selecting edges.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in selecting edges.")
+    
+    logger.log_debug(f"Selected edges: {selected_edges}")
+    logger.log_debug(f"Edge rewards: {edge_rewards}")
+
     try:
         path = pp.path_plan(start=start_location, edge_list=selected_edges, edge_rewards=edge_rewards)
     except Exception as e:
@@ -201,7 +207,7 @@ def predict_trashcan_status(latest_data_file: UploadFile = File(...)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error in path planning: {e}")
     # handle prediction request for a specific trashcan
     # This is a placeholder for the actual prediction logic
-
+    logger.log_debug(f"Path planned: {path}")
     return path
 
 log_info("FastAPI server started. Listening on port 8000.")

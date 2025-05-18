@@ -33,7 +33,6 @@ logger = logger()
 logger.user = "EdgeSelector"
 ############################################################
 
-time = 0.0
 
 class EdgeSelector():
     def __init__(self, city_map_file, trashcan_data_file):
@@ -129,7 +128,7 @@ class EdgeSelector():
         end = time.time()
 
         logger.log_debug(f"All models trained in {end - start} seconds.")
-        return True
+        return end - start
 
 
     def update_trashcan_data(self):
@@ -174,16 +173,7 @@ class EdgeSelector():
         # self.train_models_parallel(self.trashcan_models, batch_size)
         if self.are_models_trained == False:
             # Initialize all models for each trashcan
-            start = time.time()
-            self.initialize_trashcan_models()
-            # Train all models in parallel
-            self.train_models_parallel()
-            self.are_models_trained = True
-            end = time.time()
-
-            global time 
-            time = end - start
-            logger.log_debug(f"All models trained in {end - start} seconds.")
+            self.train_models()
 
         # Append the latest data
         self.TrashcanDataHandler.append(latest_trashcan_data, timestamp="DAY")
