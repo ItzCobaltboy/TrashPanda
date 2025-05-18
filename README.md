@@ -146,7 +146,7 @@ Predicts trashcan fill levels and returns an optimized path for collection. For 
 System will process the data and make a wise decision on path planning (Described in next topics)
 ```
 {
-  "path": ["Node1", "Node2", "Node3", "Node4"]
+  "route": ["Node1", "Node2", "Node3", "Node4"]
 }
 ```
 
