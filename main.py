@@ -210,5 +210,16 @@ def predict_trashcan_status(start_node : str = Form(...),day_name: str = Form(..
     logger.log_debug(f"Path planned: {path}")
     return path
 
+log_info("\n\n" \
+    "========================================================\n\n" \
+    "Welcome to TrashPanda! v1.0.0\n" \
+    "This is a Trash Collection Route Optimization System, Please read documentation for usage and working\n" \
+    "This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License. Please find LICENSE file in the root directory.\n\n" \
+    
+    "Github Link: https://github.com/ItzCobaltboy/TrashPanda/tree/main \n\n"\
+    "========================================================\n")
+
+
+
 log_info("FastAPI server started. Listening on port 8000.")
-log_info("Endpoints: /city_map, /trashcan_data, /road_data, /train, /predict")
+log_info("Endpoints: /upload, /train, /predict")
