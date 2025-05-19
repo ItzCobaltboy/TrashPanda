@@ -238,4 +238,4 @@ def simulate_daily_cycle(num_days=10):
 
 upload_files()
 train_model()
-simulate_daily_cycle(20)
+simulate_daily_cycle(50)

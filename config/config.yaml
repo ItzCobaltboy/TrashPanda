@@ -33,7 +33,7 @@ path_planning:
   # Scaler for cost of taking detour in pathplanning against rewards 
   # Increasing reduces tendancy for accepting detour, decreasing does the opposite, tune as per choice 
   # Setting this to 0 will cause the system to always take detour to optional edges
-  cost_scaler: 1.5 
+  cost_scaler: 1.0 
 
   # Scaler for reward of taking a detour
   # Increasing will increase tendancy for accepting detour, decreasing does the opposite

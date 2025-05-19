@@ -213,7 +213,6 @@ class PathPlanner:
                 if extra1 < 0 or extra2 < 0:
                     logger.log_error(f"Negative cost for detour: {edgeID} between {i} and {j}.")
                     logger.log_error(f"Path1: {path1}, Cost1: {cost1}, Path2: {path2}, Cost2: {cost2}, Original Cost: {original_cost}, Route: {route}")
-                    raise ValueError("Negative cost for detour.")
 
                 if extra1 < min_extra_cost:
                     min_extra_cost = extra1
