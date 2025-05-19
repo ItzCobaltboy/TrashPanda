@@ -45,7 +45,7 @@ This will install all the required dependancies
 
 ## Running
 ```
-uvicorn main:app --reload
+python main.py
 ```
 
 ---
