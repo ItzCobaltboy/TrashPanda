@@ -50,6 +50,16 @@ python main.py
 
 ---
 
+# Running Sample Simulations
+
+We have provided some sample city simulations that you can utilise to test the system, visit `tests` and you will see some folders with test cases
+
+Each testcase has 3 parts, `city_map.json` is the city map defined by the user, `simulation_script` has parameters like `TRASHCAN_NUMBER` and `SIMULATION_DAYS` as configurations, the script will automatically analyse the city map and generate a dataset for it depending on parameters and it will ping the given host address to TrashPanda, and simulate its responses.
+
+The Simulation script is universal and will work with any valid city_map provided to it, thus it also serves as a Template for testcases
+
+---
+
 # API Endpoint Structure
 
 ## **1. POST `/upload`**
