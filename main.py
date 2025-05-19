@@ -27,6 +27,9 @@ config = load_config()
 online_mode = config["database"]["online_mode"]
 app_version = "v1.0.0-alpha"
 
+host = config["server"]["host"]
+port = config["server"]["port"]
+
 ##########################################################
 
 ##################### Setup Logger #######################
@@ -224,9 +227,9 @@ log_info("\n\n" \
 
 
 
-log_info("FastAPI server started. Listening on port 8000.")
+log_info(f"FastAPI server started. Listening on port {port}.")
 log_info("Endpoints: /upload, /train, /predict")
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host=host, port=port)
