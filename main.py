@@ -9,6 +9,7 @@ from app.preprocessor import validate_trashcan_data, validate_city_map, validate
 from app.edgeSelector import EdgeSelector
 from app.pathPlanner import PathPlanner
 import uuid
+import uvicorn
 
 # create the FastAPI app instance
 app = FastAPI()
@@ -225,3 +226,7 @@ log_info("\n\n" \
 
 log_info("FastAPI server started. Listening on port 8000.")
 log_info("Endpoints: /upload, /train, /predict")
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
