@@ -2,7 +2,7 @@
 import os
 import yaml
 import psycopg2
-from app.logger import logger
+from .logger import logger
 
 # Load config
 def load_config():
@@ -134,9 +134,11 @@ if online_mode:
 else:
 
     log_info("Running in offline mode. No database connection established.")
-    def db_log_launch_telemetry(city_map_file, trashcan_data_file, traffic_data_file):
+    def db_log_upload_telemetry(city_map_file, trashcan_data_file):
         logger.log_debug("Cannot Log Launch Telemetry in offline mode.")
         return
     def db_log_ping(client_id, endpoint, event_data, status_code):
         logger.log_debug("Cannot Log Ping Telemetry in offline mode.") 
         return
+    def retrieve_latest_files():
+        return None, None

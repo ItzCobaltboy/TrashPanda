@@ -33,7 +33,6 @@ logger = logger()
 logger.user = "EdgeSelector"
 ############################################################
 
-time = 0.0
 
 class EdgeSelector():
     def __init__(self, city_map_file, trashcan_data_file):
@@ -129,7 +128,8 @@ class EdgeSelector():
         end = time.time()
 
         logger.log_debug(f"All models trained in {end - start} seconds.")
-        return True
+        timer = float(end - start)
+        return timer
 
 
     def update_trashcan_data(self):
@@ -155,7 +155,7 @@ class EdgeSelector():
         logger.log_debug("All trashcan IDs are present in latest data.")
         return True
 
-    def select_trashcans(self, latest_trashcan_data = dict):
+    def select_trashcans(self, latest_trashcan_data = dict, day_name = str):
         selected_trashcans = {}
 
         """
@@ -174,19 +174,10 @@ class EdgeSelector():
         # self.train_models_parallel(self.trashcan_models, batch_size)
         if self.are_models_trained == False:
             # Initialize all models for each trashcan
-            start = time.time()
-            self.initialize_trashcan_models()
-            # Train all models in parallel
-            self.train_models_parallel()
-            self.are_models_trained = True
-            end = time.time()
-
-            global time 
-            time = end - start
-            logger.log_debug(f"All models trained in {end - start} seconds.")
+            self.train_models()
 
         # Append the latest data
-        self.TrashcanDataHandler.append(latest_trashcan_data, timestamp="DAY")
+        self.TrashcanDataHandler.append(latest_trashcan_data, timestamp=day_name)
 
         # predict the trashcan data
         predicted_trash_values = {}

@@ -1,10 +1,10 @@
-from fastapi import FastAPI, UploadFile, File, status, HTTPException
+from fastapi import FastAPI, Form, UploadFile, File, status, HTTPException
 import os
 import yaml
 import shutil
 import json
 from app.logger import logger
-# from app.telemetry import db_log_upload_telemetry, db_log_ping, retrieve_latest_files
+from app.telemetry import db_log_upload_telemetry, retrieve_latest_files
 from app.preprocessor import validate_trashcan_data, validate_city_map, validate_traffic_data
 from app.edgeSelector import EdgeSelector
 from app.pathPlanner import PathPlanner
@@ -60,7 +60,7 @@ latest_trashcan_data = None
 
 # If database mode is online, query the latest files from the database
 if online_mode == True:
-    # latest_city_map, latest_trashcan_data = retrieve_latest_files()
+    latest_city_map, latest_trashcan_data = retrieve_latest_files()
     if latest_city_map is None or latest_trashcan_data is None:
         logger.log_warning("No Latest Files found in the database")
         latest_city_map = None
@@ -122,7 +122,7 @@ def upload_files(city_map: UploadFile = File(...), trashcan_data: UploadFile = F
 
     latest_city_map = f"city_map_{random_id}.json"
     latest_trashcan_data = f"trashcan_data_{random_id}.csv"
-    # db_log_upload_telemetry(latest_city_map, latest_trashcan_data)
+    db_log_upload_telemetry(latest_city_map, latest_trashcan_data)
 
     return {"INFO": "File uploaded successfully"}
 
@@ -147,11 +147,10 @@ def train_model():
         log_error(f"Error in training models: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"failed to train models. {e}")
 
-    time = es.get_time()
-    return {"INFO": "Models trained successfully", "training_time": time}
+    return {"INFO": "Models trained successfully", "training_time": truth}
 
 @app.post("/predict")
-def predict_trashcan_status(latest_data_file: UploadFile = File(...)):
+def predict_trashcan_status(start_node : str = Form(...),day_name: str = Form(...),latest_data_file: UploadFile = File(...)):
 
     start_location = "Node1"
     # Validate Start Location
@@ -185,15 +184,22 @@ def predict_trashcan_status(latest_data_file: UploadFile = File(...)):
 
 
 
-    selected_cans, predicted_values_cans = es.select_trashcans(latest_data)
+    selected_cans, predicted_values_cans = es.select_trashcans(latest_trashcan_data=latest_data, day_name= day_name)
     if selected_cans is None or predicted_values_cans is None:
         log_error("Error in selecting trashcans.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in selecting trashcans.")
     
+    logger.log_debug(f"Selected trashcans: {selected_cans}")
+    logger.log_debug(f"Predicted values: {predicted_values_cans}")
+
     selected_edges, edge_rewards = es.select_edges(selected_cans, predicted_values_cans)
     if selected_edges is None or edge_rewards is None:
         log_error("Error in selecting edges.")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error in selecting edges.")
+    
+    logger.log_debug(f"Selected edges: {selected_edges}")
+    logger.log_debug(f"Edge rewards: {edge_rewards}")
+
     try:
         path = pp.path_plan(start=start_location, edge_list=selected_edges, edge_rewards=edge_rewards)
     except Exception as e:
@@ -201,7 +207,7 @@ def predict_trashcan_status(latest_data_file: UploadFile = File(...)):
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error in path planning: {e}")
     # handle prediction request for a specific trashcan
     # This is a placeholder for the actual prediction logic
-
+    logger.log_debug(f"Path planned: {path}")
     return path
 
 log_info("FastAPI server started. Listening on port 8000.")
