@@ -4,7 +4,6 @@ from xgboost import XGBClassifier
 from datetime import datetime
 
 # Load your CSV dataset
-# Assumed format: timestamp, trashcan_id, fill_level
 df = pd.read_csv("trashcan_data.csv", parse_dates=['timestamp'])
 
 # Sort and prepare time-based features
@@ -51,7 +50,14 @@ for bin_id in df['trashcan_id'].unique():
         "days_to_full": today_data['days_to_full'].values[0]
     })
 
-# Output predictions
+# Output predictions in wide format
 output_df = pd.DataFrame(predictions)
-output_df.to_csv("predicted_bins.csv", index=False)
-print("Saved predictions to predicted_bins.csv")
+
+# Convert to vertical format without timestamp
+vertical_df = pd.melt(output_df, 
+                      id_vars=['trashcan_id'], 
+                      var_name='attribute', 
+                      value_name='value')
+
+vertical_df.to_csv("predicted_bins_vertical.csv", index=False)
+print("Saved vertical predictions to predicted_bins_vertical.csv")
