@@ -11,9 +11,9 @@ import requests
 random.seed(69)
 
 # --- Configuration ---
-TRASHCAN_NUMBER = 20
+TRASHCAN_NUMBER = 40
 TRASHCAN_NAMES = [f"trashcan_{i}" for i in range(1, TRASHCAN_NUMBER + 1)]
-FILL_DAYS = 60
+FILL_DAYS = 200
 MIN_EMPTY_THRESHOLD = 80
 FILL_RATE_RANGE = (3, 20)  # Approx daily fill rate (mean)
 NOISE_STD_FRAC = 0.2  # Noise = mean_fill * this value
@@ -238,4 +238,4 @@ def simulate_daily_cycle(num_days=10):
 
 upload_files()
 train_model()
-simulate_daily_cycle(50)
+simulate_daily_cycle(20)

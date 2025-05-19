@@ -128,7 +128,8 @@ class EdgeSelector():
         end = time.time()
 
         logger.log_debug(f"All models trained in {end - start} seconds.")
-        return end - start
+        timer = float(end - start)
+        return timer
 
 
     def update_trashcan_data(self):
@@ -154,7 +155,7 @@ class EdgeSelector():
         logger.log_debug("All trashcan IDs are present in latest data.")
         return True
 
-    def select_trashcans(self, latest_trashcan_data = dict):
+    def select_trashcans(self, latest_trashcan_data = dict, day_name = str):
         selected_trashcans = {}
 
         """
@@ -176,7 +177,7 @@ class EdgeSelector():
             self.train_models()
 
         # Append the latest data
-        self.TrashcanDataHandler.append(latest_trashcan_data, timestamp="DAY")
+        self.TrashcanDataHandler.append(latest_trashcan_data, timestamp=day_name)
 
         # predict the trashcan data
         predicted_trash_values = {}
