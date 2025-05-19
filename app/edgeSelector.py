@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow
 from .preprocessor import GraphHandler, TrafficDataHandler, TrashcanDataHandler
 from .logger import logger
-from .trashcan_model import TrashcanModel
+from .trashcan_model_xgboost import TrashcanModel
 import threading
 import time
 
