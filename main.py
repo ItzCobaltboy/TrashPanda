@@ -24,6 +24,8 @@ def load_config():
 config = load_config()
 
 online_mode = config["database"]["online_mode"]
+app_version = "v1.0.0-alpha"
+
 ##########################################################
 
 ##################### Setup Logger #######################
@@ -212,7 +214,7 @@ def predict_trashcan_status(start_node : str = Form(...),day_name: str = Form(..
 
 log_info("\n\n" \
     "========================================================\n\n" \
-    "Welcome to TrashPanda! v1.0.0\n" \
+    f"Welcome to TrashPanda! {app_version}\n" \
     "This is a Trash Collection Route Optimization System, Please read documentation for usage and working\n" \
     "This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License. Please find LICENSE file in the root directory.\n\n" \
     
