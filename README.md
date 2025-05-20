@@ -182,7 +182,9 @@ Predicts trashcan fill levels and returns an optimized path for collection. For 
 
 ### Request
 - Content Type: `multipart/form-data`
-- Fields:  
+- Fields:
+    - `start_node`: Starting node for Path Planner.
+    - `day_name`: Title for column to be appended in dataset
     - `latest_data_file`: JSON file with key value pairs for new values of trash for each trashcan
 ```
 {
