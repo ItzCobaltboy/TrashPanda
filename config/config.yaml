@@ -18,10 +18,11 @@ logging:
 server:                                   # Uvicorn Server config
   host: 127.0.0.1
   port: 8000
+  visualise: true
 
 trashcan_model:
   training_window_size: 14                # Number of days for which you want to consider the trends for trashcan model prediction, 21 implies model gives out output on basis of past 21 days
-  epochs: 50                              # Number of Epoch cycles to train per trashcan
+  epochs: 5                             # Number of Epoch cycles to train per trashcan
   trashcanID_coloumn_name: trashcanID     # Set the respective coloumn names according to database
   edgeID_coloumn_name: edgeID
 

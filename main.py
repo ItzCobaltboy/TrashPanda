@@ -11,6 +11,9 @@ from app.edgeSelector import EdgeSelector
 from app.pathPlanner import PathPlanner
 import uuid
 import uvicorn
+import pandas as pd
+import matplotlib.pyplot as plt
+import networkx as nx
 
 # create the FastAPI app instance
 app = FastAPI()
@@ -30,6 +33,7 @@ app_version = "v1.0.0-alpha"
 
 host = config["server"]["host"]
 port = config["server"]["port"]
+visualise = config["server"]["visualise"]
 
 ##########################################################
 
@@ -215,6 +219,8 @@ def predict_trashcan_status(start_node : str = Form(...),day_name: str = Form(..
     # handle prediction request for a specific trashcan
     # This is a placeholder for the actual prediction logic
     logger.log_debug(f"Path planned: {path}")
+    if visualise:
+        draw_graph_with_route_and_trash(Graph, path['route'], latest_trashcan_data, route_color='red', default_color='lightgray')
     return path
 
 @app.get("/logs")
@@ -256,3 +262,35 @@ if __name__ == "__main__":
         f"Thanks for using TrashPanda! {app_version}\n" \
         "System shutdown successfully... \n\n"\
         "========================================================\n")
+
+
+def draw_graph_with_route_and_trash(G, route_nodes, trashcan_csv_path, route_color='red', default_color='lightgray'):
+# Step 1: Generate list of edges in the route (pairs of consecutive nodes)
+    route_edges = [(route_nodes[i], route_nodes[i+1]) for i in range(len(route_nodes) - 1)]
+    trashcan_csv_path = os.path.join(os.path.dirname(__file__), 'uploads',trashcan_data_url, trashcan_csv_path)
+    # Step 2: Read CSV and create edgeID → TrashcanID mapping
+    df = pd.read_csv(trashcan_csv_path)
+    edge_to_trashcan = dict(zip(df['edgeID'], df['trashcanID']))
+
+    # Step 3: Assign edge colors and labels
+    edge_colors = []
+    edge_labels = {}
+    for u, v, data in G.edges(data=True):
+        edge_id = data.get('edgeID', None)
+        trashcan_id = edge_to_trashcan.get(edge_id, 'N/A')
+        label = f"ID: {edge_id}\nCan: {trashcan_id}"
+
+        edge_labels[(u, v)] = label
+        if (u, v) in route_edges or (v, u) in route_edges:
+            edge_colors.append(route_color)
+        else:
+            edge_colors.append(default_color)
+
+    # Step 4: Draw the graph
+    pos = nx.spring_layout(G, seed=42)
+    nx.draw(G, pos, with_labels=True, node_color='skyblue', node_size=700, edge_color=edge_colors, width=2)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_size=8)
+
+    plt.title("Graph with Highlighted Route and Trashcan Mapping")
+    plt.tight_layout()
+    plt.show()
