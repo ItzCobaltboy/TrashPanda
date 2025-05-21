@@ -61,3 +61,6 @@ class logger():
             write_log(self.user, "debug", message, Fore.GREEN)
         else:
             return
+        
+    def retrieve_log(self):
+        return log_file

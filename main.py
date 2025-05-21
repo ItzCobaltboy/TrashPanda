@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Form, UploadFile, File, status, HTTPException
+from fastapi.responses import FileResponse
 import os
 import yaml
 import shutil
@@ -216,20 +217,42 @@ def predict_trashcan_status(start_node : str = Form(...),day_name: str = Form(..
     logger.log_debug(f"Path planned: {path}")
     return path
 
-log_info("\n\n" \
-    "========================================================\n\n" \
-    f"Welcome to TrashPanda! {app_version}\n" \
-    "This is a Trash Collection Route Optimization System, Please read documentation for usage and working\n" \
-    "This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License. Please find LICENSE file in the root directory.\n\n" \
-    
-    "Github Link: https://github.com/ItzCobaltboy/TrashPanda/tree/main \n\n"\
-    "========================================================\n")
+@app.get("/logs")
+def get_logs():
+    # Return the path to the log file
+    log_file_path = logger.retrieve_log()
+    log_file_path = os.path.join(os.path.dirname(__file__), log_file_path)
 
+    print(f"Log file path: {log_file_path}")
 
+    if os.path.exists(log_file_path):
+        return FileResponse(log_file_path, filename="latest_log.txt")
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Log file not found")
 
-log_info(f"FastAPI server started. Listening on port {port}.")
-log_info("Endpoints: /upload, /train, /predict")
 
 
 if __name__ == "__main__":
+
+    log_info("\n\n" \
+        "========================================================\n\n" \
+        f"Welcome to TrashPanda! {app_version}\n" \
+        "This is a Trash Collection Route Optimization System, Please read documentation for usage and working\n" \
+        "This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License. Please find LICENSE file in the root directory.\n\n" \
+        
+        "Github Link: https://github.com/ItzCobaltboy/TrashPanda/tree/main \n\n"\
+        "========================================================\n")
+
+
+
+    log_info(f"FastAPI server started. Listening on port {port}.")
+    log_info("Endpoints: /upload, /train, /predict, /logs")
+
+
     uvicorn.run("main:app", host=host, port=port)
+
+    log_info("\n\n" \
+        "========================================================\n\n" \
+        f"Thanks for using TrashPanda! {app_version}\n" \
+        "System shutdown successfully... \n\n"\
+        "========================================================\n")
