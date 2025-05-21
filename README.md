@@ -8,6 +8,50 @@ The repository also contains some sample input data for testing the system
 
 ---
 
+# Features
+
+### LSTM-Based Trash Fill Prediction  
+- Predicts individual trashcan fill levels using an LSTM model trained on simulated time-series data.  
+- Window size is fully configurable to adapt to different prediction horizons or sensor sampling rates.
+
+### City-Scale Simulation Environment  
+- Simulates dynamic urban environments with customizable parameters:  
+  - Number of streets and bins  
+  - Trash generation patterns  
+- Designed to evaluate route optimization strategies in varied scenarios.
+
+### Heuristic-Based Routing Algorithm  
+- Implements a cost-vs-reward decision tree for route generation.  
+- Step-by-step:  
+  1. Identify mandatory pickups (bins close to full).  
+  2. Generate a baseline route.  
+  3. For each nearby bin, predict future fill state.  
+  4. If the projected reward exceeds the detour cost, include it in the final route.  
+- Balances fuel/time cost with overflow prevention and efficiency.
+
+### FastAPI Backend  
+- Provides RESTful endpoints for control and operations.  
+- Easily integrates with visualizations or external dashboards.
+
+### GPU-Accelerated Batch Training  
+- Automatically detects GPU availability and offloads training if possible.  
+- Supports parallel training of multiple models in configurable batches.  
+- Designed for rapid experimentation and ensemble model training.  
+- Tested on RTX 3050 Ti Mobile 4GB with concurrent training of up to 20 LSTM models.
+- In case of no GPU, System automatically resorts to sequential model training to not overload the system.
+
+### Configurable and Extensible Architecture  
+- Modular codebase with clear separation of concerns (simulation, model, API, routing).  
+- Centralized configuration for model parameters, path planner settings, and system behavior.  
+- Easy to extend with new models, routing strategies, or visualization layers.
+- Togglable extended debug logging for Dev support.
+
+### Experiment-Ready Setup  
+- Designed for iterative experimentation with routing heuristics and prediction models.  
+- Outputs include raw logs, simulation state dumps, and performance metrics.
+
+---
+
 # Core requirements
 
 - Python 3.10.x (otherwise Tensorflow will break)
@@ -138,7 +182,9 @@ Predicts trashcan fill levels and returns an optimized path for collection. For 
 
 ### Request
 - Content Type: `multipart/form-data`
-- Fields:  
+- Fields:
+    - `start_node`: Starting node for Path Planner.
+    - `day_name`: Title for column to be appended in dataset
     - `latest_data_file`: JSON file with key value pairs for new values of trash for each trashcan
 ```
 {
