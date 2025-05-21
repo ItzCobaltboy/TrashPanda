@@ -58,7 +58,7 @@ class TrashcanModel:
             return None, None
 
     def _build_feature_frame(self):
-        series = self.trashcan_data.values.flatten()
+        series = self.trashcan_data.values.flatten()[: -window_size-1:-1]
         df = pd.DataFrame({
             'timestamp': self.timestamps,
             'fill_level': series
@@ -132,7 +132,8 @@ class TrashcanModel:
             X_scaled = self.scaler.transform(X_window)
             y = np.array([y_target])
 
-            self.model.fit(X_scaled, y)
+            # self.model.fit(X_scaled, y)
+            self.train()
             logger.log_debug(f"Model updated with new row data for {self.trashcan_ID}")
 
         except Exception as e:
