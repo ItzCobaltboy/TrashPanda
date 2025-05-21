@@ -205,6 +205,8 @@ class EdgeSelector():
             else:
                 selected_trashcans[trashcan_id] = 0
 
+        logger.log_debug(f"Selected trashcans: {selected_trashcans}")
+        logger.log_debug(f"Predicted trash values: {predicted_trash_values}")
 
         return selected_trashcans, predicted_trash_values
 
@@ -241,6 +243,9 @@ class EdgeSelector():
                 continue
             if edge_actions[edge_id] == 1:
                 edge_rewards[edge_id] += predicted_value
+
+        logger.log_debug(f"Edge actions: {edge_actions}")
+        logger.log_debug(f"Edge rewards: {edge_rewards}")
 
         return edge_actions, edge_rewards
 
