@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Trash Route Simulator</title>
+  <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="top-bar"><img src="TrashPanda.png" class="TitleImage"></div>
+  <script type="module">
+    import { generateTrashcanCSV } from "./logic.js";
+
+    const SERVER = "http://localhost:8000";
+    let cityData = null;
+    let cy = null;
+    let edgeToTrashcans = {};
+    let currentFills = {};
+
+    async function upload() {
+      const cityFile = document.getElementById("cityMapFile").files[0];
+      const loader = document.getElementById("loader")
+      loader.style.display = "block";
+      
+
+      if (!cityFile) return alert("Please select a city map JSON file.");
+
+      const text = await cityFile.text();
+      cityData = JSON.parse(text);
+
+      const trashcanCount = parseInt(document.getElementById("paramTrashcans").value);
+      const fillDays = parseInt(document.getElementById("paramDays").value);
+      const fillRateRange = document.getElementById("paramRate").value.split(",").map(Number);
+      const startDateStr = document.getElementById("paramStartDate").value;
+
+      const { csv, edgeToTrashcans: edgeMap, currentFill } = generateTrashcanCSV({
+        cityMap: cityData,
+        trashcanCount,
+        fillDays,
+        fillRateRange,
+        startDateStr
+      });
+
+      
+      edgeToTrashcans = edgeMap;
+      currentFills = currentFill;
+
+      const formData = new FormData();
+      formData.append("city_map", new Blob([text], { type: "application/json" }), "city_map.json");
+      formData.append("trashcan_data", new Blob([csv], { type: "text/csv" }), "trashcan_data.csv");
+
+      try {
+        const res = await fetch(`${SERVER}/upload`, { method: "POST", body: formData });
+        if (!res.ok) throw new Error(await res.text());
+        document.getElementById("output").textContent = "✅ Files uploaded.";
+        const data = await res.json();  // Parse the JSON response
+        const prettyText = JSON.stringify(data, null, 2);  // Pretty-print with 2-space indentation
+        document.getElementById("output-response").textContent = prettyText;
+
+        drawGraph(cityData, [], edgeToTrashcans);
+        drawTable();
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      }
+      loader.style.display = "none";
+    }
+
+    function train() {
+      const loader = document.getElementById("loader")
+      document.getElementById("loader").style.display = "block";
+
+      document.getElementById("output").textContent = "⏳ Training...";
+      fetch(`${SERVER}/train`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("output").textContent =
+        `✅ Trained: ${data.INFO}, Time: ${data.Time_taken}s`;
+        const prettyText = JSON.stringify(data, null, 2);  // Pretty-print with 2-space indentation
+        document.getElementById("output-response").textContent = prettyText;
+
+      })
+      .catch(err => alert("Training failed: " + err));
+      document.getElementById("loader").style.display = "none";
+    }
+
+    function predict() {
+
+      const loader = document.getElementById("loader")
+      loader.style.display = "block";
+      const today = new Date().toISOString().split("T")[0];
+      if (!cityData) return alert("City data not loaded yet.");
+
+      document.getElementById("output").textContent = 'Awaiting Server Response'
+      // Step 1: Clone current fills as latest fill snapshot
+      const latestFill = {};
+      for (const [id, val] of Object.entries(currentFills)) {
+        latestFill[id] = val;
+      }
+
+      // Step 2: Prepare payload
+      const formData = new FormData();
+      formData.append("latest_data_file", new Blob([JSON.stringify(latestFill)], { type: "application/json" }), "latest_fill.json");
+      formData.append("start_node", "Node1");
+      formData.append("day_name", today);
+
+      // Step 3: Send prediction request
+      fetch(`${SERVER}/predict`, { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(data => {
+          const route = data.route || [];
+          const prettyText = JSON.stringify(data, null, 2);  // Pretty-print with 2-space indentation
+          document.getElementById("output-response").textContent = prettyText;
+
+          document.getElementById("output").textContent =
+            `🚛 Route: ${route.join(" → ")}\n💸 Cost: ${data.cost}\n🎯 Reward: ${data.reward}`;
+
+          // Step 4: Extract visited edge IDs from route
+          const visitedEdges = new Set();
+          for (let i = 0; i < route.length - 1; i++) {
+            const u = route[i], v = route[i + 1];
+            const edge = cityData.edges.find(e =>
+              (e.source === u && e.target === v) || (e.source === v && e.target === u)
+            );
+            if (edge) visitedEdges.add(edge.id);
+          }
+
+          // Step 5: Update currentFills based on edge visitation
+          for (const [edgeID, cans] of Object.entries(edgeToTrashcans)) {
+            for (const id of cans) {
+              if (visitedEdges.has(edgeID)) {
+                currentFills[id] = 0; // emptied
+              } else {
+                const noise = Math.random() * 10; // dummy fill increase
+                currentFills[id] = Math.min(currentFills[id] + noise, 100);
+              }
+            }
+          }
+
+          // Step 6: Redraw visuals
+          drawGraph(cityData, route, edgeToTrashcans);
+          drawTable();
+        })
+        .catch(err => alert("Prediction failed: " + err));
+        loader.style.display = "none";
+    }
+
+    function simulate() {
+      const days = parseInt(document.getElementById("paramSimDays").value);
+      for (let i = 0; i < days; i++) {
+        predict();
+      }
+    }
+
+    function drawGraph(data, route, edgeMap) {
+      const nodeMap = new Set(route);
+      const edgeLabels = {};
+      Object.entries(edgeMap).forEach(([eid, cans]) => {
+        edgeLabels[eid] = cans;
+      });
+
+      cy = cytoscape({
+        container: document.getElementById("graph"),
+        elements: [
+          ...data.nodes.map(n => ({
+            data: { id: n.id, label: n.id }
+          })),
+          ...data.edges.map(e => ({
+            data: {
+              id: e.id,
+              source: e.source,
+              target: e.target,
+              label: e.id,
+              hoverLabel: `${e.id}\n${(edgeLabels[e.id] || []).join(", ")}`
+            },
+            classes: "edge-default"
+          }))
+        ],
+        style: [
+          {
+            selector: "node",
+            style: {
+              backgroundColor: ele => nodeMap.has(ele.data("id")) ? "#CCCCCC" : "#888",
+              label: "data(label)",
+              color: "#333",
+              fontSize: 8,
+              textValign: "center",
+              textHalign: "center",
+              width: 20,
+              height: 20,
+              shape: "ellipse"
+            }
+          },
+          {
+            selector: "edge",
+            style: {
+              width: 2,
+              lineColor: "#CCCCCC",
+              label: "data(label)",
+              fontSize: 6,
+              textRotation: "autorotate",
+              textWrap: "none",
+              color: "#444"
+            }
+          },
+          {
+            selector: "edge.hovered",
+            style: {
+              label: "data(hoverLabel)",
+              textWrap: "wrap",
+              textMaxWidth: 120,
+              fontSize: 7,
+              color: "#FFF",
+              backgroundColor: "#000"
+            }
+          }
+        ],
+        layout: {
+          name: "grid",
+          fit: true,
+          padding: 20,
+          avoidOverlap: true,
+          spacingFactor: 0.75
+        }
+      });
+
+      cy.edges().on("mouseover", evt => {
+        const edge = evt.target;
+        edge.addClass("hovered");
+      });
+
+      cy.edges().on("mouseout", evt => {
+        const edge = evt.target;
+        edge.removeClass("hovered");
+      });
+
+      // Highlight route edges
+      for (let i = 0; i < route.length - 1; i++) {
+        const u = route[i], v = route[i + 1];
+        cy.edges().forEach(edge => {
+          if ((edge.data("source") === u && edge.data("target") === v) ||
+              (edge.data("source") === v && edge.data("target") === u)) {
+            edge.style("lineColor", "#ff5722").style("width", 4);
+          }
+        });
+      }
+    }
+
+    function drawTable() {
+      const table = document.getElementById("fillTable");
+      table.innerHTML = "<tr><th>Trashcan</th><th>Edge</th><th>Fill %</th><th>Status</th></tr>";
+
+      for (const [edge, cans] of Object.entries(edgeToTrashcans)) {
+        for (const id of cans) {
+          const fill = currentFills[id]?.toFixed(2);
+          const overflow = fill >= 100;
+          const row = document.createElement("tr");
+          if (overflow) row.classList.add("overflow");
+          row.innerHTML = `
+            <td>${id}</td>
+            <td>${edge}</td>
+            <td><div class="bar" style="width:${fill}%">${fill}%</div></td>
+            <td>${overflow ? "OVERFLOW" : "OK"}</td>
+          `;
+          table.appendChild(row);
+        }
+      }
+    }
+
+    window.upload = upload;
+    window.train = train;
+    window.predict = predict;
+    window.simulate = simulate;
+  </script>
+
+  <div class="main-container">
+    <div class="controls">
+    <label>City Map (JSON): <input type="file" id="cityMapFile" /></label><br />
+    <label>Trashcans: <input type="number" id="paramTrashcans" value="20" /></label><br />
+    <label>Days: <input type="number" id="paramDays" value="200" /></label><br />
+    <label>Fill Rate Range (min,max): <input type="text" id="paramRate" value="3,10" /></label><br />
+    <label>Start Date: <input type="date" id="paramStartDate" value="2025-01-01" /></label><br />
+    <label>Simulate Days: <input type="number" id="paramSimDays" value="7" /></label><br />
+    <button type="button" onclick="upload()">⬆️ Generate & Upload</button>
+    <button type="button" onclick="train()">🧠 Train Model</button>
+    <button type="button" onclick="predict()">🧮 Predict Route</button>
+    <button type="button" onclick="simulate()">▶️ Simulate</button>
+    <div id="loader" class="loader" style="display: none;"></div>
+  </div>
+  </div>
+  
+
+  <div id="graph"></div>
+
+  
+  <div class="result-section">
+    <h2>Result:</h2>
+    <pre id="output"></pre>
+    <pre id="output-response"></pre>
+    <h2>📊 Trashcan Fill Levels</h2>
+    <table id="fillTable"></table>
+  </div>
+</body>
+</html>

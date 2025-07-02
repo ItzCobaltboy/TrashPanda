@@ -1,0 +1,145 @@
+*{
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+
+/* === Base Styles === */
+body {
+  font-family: 'Georgia', serif;
+  margin: 0;
+  padding: 0;
+  background: url('background.jpg') no-repeat center center fixed;
+  background-size: cover;
+  color: #eee;
+}
+
+h1, h3 {
+  font-weight: normal;
+  margin: 0;
+}
+
+button {
+  padding: 8px 14px;
+  margin: 5px;
+  background-color: #222;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background-color: #333;
+}
+
+input, select {
+  background: #111;
+  color: #eee;
+  border: 1px solid #444;
+  padding: 4px 6px;
+  margin: 4px 0;
+}
+
+pre {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 10px;
+  white-space: pre-wrap;
+  border-radius: 4px;
+  border: 1px solid #333;
+}
+
+/* === Top Showcase Bar === */
+.top-bar {
+  backdrop-filter: blur(12px);
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 14px 20px;
+  font-size: 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  letter-spacing: 1px;
+  color: #fafafa;
+  font-weight: bold;
+}
+.TitleImage{
+    width: 30%;
+    height: auto;
+}
+
+/* === Controls Section === */
+.controls {
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.4);
+  margin: 20px;
+  border-radius: 8px;
+  border: 1px solid #555;
+  backdrop-filter: blur(20px);
+}
+
+.result-section{
+    margin: 20px;
+    font-size: large;
+}
+/* === Graph Area === */
+#graph {
+  width: 100%;
+  height: 500px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid #666;
+  margin: 20px;
+  border-radius: 8px;
+  background-color:rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+}
+
+#output {
+    background-color: #111;
+}
+
+/* === Table === */
+table {
+  width: calc(100% - 40px);
+  margin: 0px;
+  border-collapse: collapse;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid #444;
+  backdrop-filter: blur(20px);
+}
+
+
+th, td {
+  padding: 8px 10px;
+  border: 1px solid #555;
+  color: #eee;
+}
+
+.overflow {
+  background: #330000;
+  color: #ff4444;
+  font-weight: bold;
+}
+
+.bar {
+  height: 10px;
+  border-radius: 3px;
+  background: #4caf50;
+  display: inline-block;
+}
+
+/* === Loader Spinner === */
+.loader {
+  border: 5px solid rgba(255, 255, 255, 0.2);
+  border-top: 5px solid #ff5722;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  position: fixed;
+  top: 10px;
+  right: 20px;
+  z-index: 999;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

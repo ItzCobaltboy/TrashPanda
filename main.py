@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Form, UploadFile, File, status, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
 import os
 import yaml
@@ -17,6 +19,14 @@ import networkx as nx
 
 # create the FastAPI app instance
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 ################### Load Config ##########################
 config_file = os.path.join(os.path.dirname(__file__), 'config', 'config.yaml')
@@ -135,7 +145,7 @@ def upload_files(city_map: UploadFile = File(...), trashcan_data: UploadFile = F
     latest_trashcan_data = f"trashcan_data_{random_id}.csv"
     db_log_upload_telemetry(latest_city_map, latest_trashcan_data)
 
-    return {"INFO": "File uploaded successfully"}
+    return JSONResponse(content={"INFO": "Files uploaded Successfully"})
 
 
 es = None
@@ -158,7 +168,7 @@ def train_model():
         log_error(f"Error in training models: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"failed to train models. {e}")
 
-    return {"INFO": "Models trained successfully", "training_time": truth}
+    return JSONResponse(content = {"INFO": "Models trained successfully", "training_time": truth})
 
 @app.post("/predict")
 def predict_trashcan_status(start_node : str = Form(...),day_name: str = Form(...),latest_data_file: UploadFile = File(...)):
